@@ -49,7 +49,7 @@ class Spring {
 public:
   Spring(int mass1, int mass2, float k, float c, float restLen);
   int* getMassIndices();
-  Vector calculateForces(const Vector& m1State, const Vector& m2State);
+  Vector calculateForce(const Vector& m1State, const Vector& m2State);
 };
 
 #endif

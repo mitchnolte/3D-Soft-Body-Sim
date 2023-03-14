@@ -3,6 +3,7 @@
 
 #include <GL/glew.h>
 #include <glm/glm.hpp>
+#include "soft_body.h"
 
 class Mesh {
   GLuint vbuffer;     // Vertex buffer name
@@ -13,7 +14,20 @@ class Mesh {
 
 public:
   Mesh();
-  
+  virtual void display() = 0;
+};
+
+
+class SoftBodyMesh : public Mesh {
+  SoftBody body;
+};
+
+
+class TransformableMesh : public Mesh {
+  glm::mat4 transformation;
+
+public:
+  void display(const glm::mat4& viewPerspective);
 };
 
 #endif

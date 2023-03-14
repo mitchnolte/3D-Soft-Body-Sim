@@ -9,7 +9,7 @@ SoftBody::SoftBody() {}
 void SoftBody::ode(const List<Vector>& states, List<Vector>& rates) {
   for(Spring spring : springs) {
     int* masses = spring.getMassIndices();
-    Vector force = spring.calculateForces(states[masses[0]], states[masses[1]]);
+    Vector force = spring.calculateForce(states[masses[0]], states[masses[1]]);
     rates[masses[0]] += force;
     rates[masses[1]] -= force;
   }
@@ -57,17 +57,15 @@ int* Spring::getMassIndices() {
   return masses;
 }
 
-Vector Spring::calculateForces(const Vector& m1State, const Vector& m2State) {
+Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State) {
 
-  // Relative velocity between masses
-  Vector velocity    = Vector(m1State[std::slice(3, 3, 1)]) - Vector(m2State[std::slice(3, 3, 1)]);
+  // Relative velocity and direction
+  Vector velocity  = Vector(m1State[std::slice(3, 3, 1)]) - Vector(m2State[std::slice(3, 3, 1)]);
+  Vector direction = Vector(m1State[std::slice(0, 3, 1)]) - Vector(m2State[std::slice(0, 3, 1)]);
 
-  // Direction from 2nd mass to 1st
-  Vector direction   = Vector(m1State[std::slice(0, 3, 1)]) - Vector(m2State[std::slice(0, 3, 1)]);
-
-  float  length      = vecNorm(direction);                      // Spring length
-  Vector u           = direction / length;                      // Unit length direction
-  float  deformation = length - restLen;                        // Spring deformation
+  float  length      = vecNorm(direction);              // Spring length
+  Vector u           = direction / length;              // Unit length direction
+  float  deformation = length - restLen;                // Spring deformation
   Vector force       = -k*deformation*u - c*velocity;
 
   return force;

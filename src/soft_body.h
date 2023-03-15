@@ -10,13 +10,14 @@ class Spring;
 
 class SoftBody {
   std::vector<Mass> masses;
+  std::vector<const Mass&> surfaceMasses;
   std::vector<Spring> springs;
   MultiStateRK4solver solver;
 
 public:
   SoftBody();
+  const std::vector<const Mass&>& getSurfaceMasses() const;
   void update(double time);
-  void display();
   VecList ode(const VecList& states, double time);
 };
 
@@ -26,8 +27,8 @@ class Mass {
 
 public:
   Mass(Vector pos=Vector(3), Vector vel=Vector(3));
-  Vector getPos();
-  Vector getVel();
+  Vector getPos() const;
+  Vector getVel() const;
   void update(const Vector& state);
 };
 

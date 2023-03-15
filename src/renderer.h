@@ -10,10 +10,11 @@
 
 class Renderer {
   Camera camera;
-  std::unordered_map<SoftBody*, Mesh> meshes;
+  std::unordered_map<const SoftBody*, Mesh> meshes;
 
 public:
   void display(Simulation* sim);
+  void updateMesh(const SoftBody& body);
 };
 
 #endif

@@ -14,12 +14,9 @@ class Mesh {
 
 public:
   Mesh();
-  virtual void display() = 0;
-};
-
-
-class SoftBodyMesh : public Mesh {
-  SoftBody body;
+  GLuint getVbuffer();
+  GLuint getIbuffer();
+  virtual void display(const glm::mat4& viewPerspective) = 0;
 };
 
 

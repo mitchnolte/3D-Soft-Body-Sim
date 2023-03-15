@@ -7,6 +7,11 @@
 
 SoftBody::SoftBody() {}
 
+const std::vector<const Mass&>& SoftBody::getSurfaceMasses() const {
+  return surfaceMasses;
+}
+
+
 void SoftBody::update(double time) {
   VecList states = solver.integrate(time);
 
@@ -38,11 +43,11 @@ Mass::Mass(Vector pos, Vector vel) {
   this->state[std::slice(3, 3, 1)] = vel;
 }
 
-Vector Mass::getPos() {
+Vector Mass::getPos() const {
   return Vector(state[std::slice(0, 3, 1)]);
 }
 
-Vector Mass::getVel() {
+Vector Mass::getVel() const {
   return Vector(state[std::slice(3, 3, 1)]);
 }
 

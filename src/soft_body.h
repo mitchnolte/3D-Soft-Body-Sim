@@ -2,30 +2,22 @@
 #define SOFT_BODY_H
 
 #include "vector.h"
+#include "rk4_solver.h"
 
 class Mass;
 class Spring;
 
 
 class SoftBody {
-  List<Mass> masses;
-  List<Spring> springs;
+  std::vector<Mass> masses;
+  std::vector<Spring> springs;
+  MultiStateRK4solver solver;
 
 public:
   SoftBody();
-
-  /**
-   *  **** TEMP COMMENT ****
-   * 
-   * - States separately stores the states for each mass (and the simulation
-   *   will store these lists in another list with an entry for each object).
-   * - Rates is just the output. It'll be quite large so I don't want to be
-   *   copying it and don't feel like dealing with the memory management of
-   *   dynamically allocating it.
-   *     - Will need to initialize every Vector to (0, 0, 0) before calling this
-   *       function (from sim class).
-   */
-  void ode(const List<Vector>& states, List<Vector>& rates);
+  void update(double time);
+  void display();
+  VecList ode(const VecList& states, double time);
 };
 
 

@@ -6,13 +6,14 @@
 
 // Vector for physics calculations
 typedef std::valarray<float> Vector;
-
-// Renaming std::vector to List to avoid confusion
-template <typename T>
-using List = std::vector<T>;
-
+typedef std::vector<Vector> VecList;
 
 float vecDot(const Vector& u, const Vector& v);
 float vecNorm(const Vector& v);
+
+VecList operator+(VecList l1, VecList l2);
+VecList operator*(VecList l1, VecList l2);
+VecList operator*(float scalar, VecList list);
+VecList operator*(VecList list, float scalar);
 
 #endif

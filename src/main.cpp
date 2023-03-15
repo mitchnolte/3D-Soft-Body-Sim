@@ -10,10 +10,15 @@
 #include <math.h>
 #include <stdio.h>
 #include <iostream>
+#include "shaders.h"
+#include "renderer.h"
 #include "simulation.h"
 
 #define WIN_WIDTH  640.0
 #define WIN_HEIGHT 640.0
+#define STEP_RATE  60     // Simulation updates per second
+
+Renderer renderer;
 
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
@@ -58,13 +63,17 @@ int main() {
   glViewport(0, 0, WIN_WIDTH, WIN_HEIGHT);
   glfwSwapInterval(1);
 
+  // Load shader program
+  glUseProgram(buildProgram(buildShader(GL_VERTEX_SHADER, "vertex_shader.vs"),
+                            buildShader(GL_FRAGMENT_SHADER, "fragment_shader.fs"), 0));
+
   // Initialize simulation
-  Simulation sim;
+  Simulation sim(1/STEP_RATE);
 
   // Main loop
   while(!glfwWindowShouldClose(window)) {
     sim.update();
-    sim.display();
+    renderer.display(&sim);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

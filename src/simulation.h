@@ -1,13 +1,18 @@
 #ifndef SIMULATION_H
 #define SIMULATION_H
 
-class Simulation {
+#include "soft_body.h"
 
+class Simulation {
+  float time;
+  float dt;
+  std::vector<SoftBody> bodies;
 
 public:
-  Simulation();
+  Simulation(float dt);
+  void addBody(SoftBody body);
+  const std::vector<SoftBody>& getBodies();
   void update();
-  void display();
 };
 
 #endif

@@ -1,12 +1,22 @@
 #include "soft_body.h"
 
+
 /*******************************************************************************
  *  SOFT BODY CLASS
  ******************************************************************************/
 
 SoftBody::SoftBody() {}
 
-void SoftBody::ode(const List<Vector>& states, List<Vector>& rates) {
+void SoftBody::update(double time) {
+  VecList states = solver.integrate(time);
+
+  // TODO: check for internal collisions
+
+}
+
+
+VecList SoftBody::ode(const VecList& states, double time) {
+  VecList rates = VecList(states.size(), Vector(states[0].size()));
   for(Spring spring : springs) {
     int* masses = spring.getMassIndices();
     Vector force = spring.calculateForce(states[masses[0]], states[masses[1]]);
@@ -14,7 +24,7 @@ void SoftBody::ode(const List<Vector>& states, List<Vector>& rates) {
     rates[masses[1]] -= force;
   }
 
-  // TODO: check for internal collisions
+  return rates;
 }
 
 

@@ -1,9 +1,10 @@
-#include <glm/gtc/matrix_transform.hpp>
 #include "camera.h"
+#include <glm/gtc/matrix_transform.hpp>
+
 
 Camera::Camera() {}
 
-Camera::Camera(const glm::vec3& position, const glm::vec3& direction, float fov, float aspectRatio)
+Camera::Camera(const glm::vec3& position, const glm::vec3& direction, float aspectRatio, float fov)
 {
   this->position = position;
   this->direction = glm::normalize(direction);

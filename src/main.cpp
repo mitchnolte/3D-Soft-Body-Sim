@@ -18,8 +18,8 @@
 #define WIN_HEIGHT 640.0
 #define STEP_RATE  60     // Simulation updates per second
 
-Renderer renderer;
 
+Renderer renderer;
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
   if(height == 0) height = 1;
@@ -67,13 +67,15 @@ int main() {
   glUseProgram(buildProgram(buildShader(GL_VERTEX_SHADER, "vertex_shader.vs"),
                             buildShader(GL_FRAGMENT_SHADER, "fragment_shader.fs"), 0));
 
-  // Initialize simulation
+  // Initialize simulation and renderer
   Simulation sim(1/STEP_RATE);
+  float ratio = WIN_WIDTH / WIN_HEIGHT;
+  renderer.initializeCamera(glm::vec3(0.0, 5.0, 1.8), glm::vec3(0.0, -1.0, 0.0), ratio);
 
   // Main loop
   while(!glfwWindowShouldClose(window)) {
     sim.update();
-    renderer.display(&sim);
+    renderer.display(sim);
     glfwSwapBuffers(window);
     glfwPollEvents();
   }

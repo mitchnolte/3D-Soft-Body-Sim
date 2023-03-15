@@ -2,21 +2,26 @@
 #define MESH_H
 
 #include <GL/glew.h>
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include "soft_body.h"
 
+
 class Mesh {
-  GLuint vbuffer;     // Vertex buffer name
-  GLuint ibuffer;     // Index buffer name
-  GLuint triangles;   // Number of triangles
-  GLuint64 vbytes;    // Size of vertices in bytes
-  glm::vec4 colour;   // Colour of mesh
+protected:
+  GLuint vertexBuf;
+  GLuint indexBuf;
+  GLuint numTris;
+  GLuint64 vertexSize;  // Size of vertices in bytes
+  glm::vec4 colour;
+
+  void loadVertexData(GLuint program);
 
 public:
   Mesh();
-  GLuint getVbuffer();
-  GLuint getIbuffer();
-  virtual void display(const glm::mat4& viewPerspective) = 0;
+  GLuint getVertexBuf();
+  GLuint getIndexBuf();
+  virtual void display(GLuint program, const glm::mat4& viewPerspective);
 };
 
 
@@ -24,7 +29,7 @@ class TransformableMesh : public Mesh {
   glm::mat4 transformation;
 
 public:
-  void display(const glm::mat4& viewPerspective);
+  void display(GLuint program, const glm::mat4& viewPerspective);
 };
 
 #endif

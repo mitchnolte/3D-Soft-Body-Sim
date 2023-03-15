@@ -1,6 +1,8 @@
 #include "rk4_solver.h"
 
 
+RK4solver::RK4solver() {}
+
 RK4solver::RK4solver(ODEfn f, Vector state, double time) {
   this->f = f;
   this->state = state;
@@ -18,7 +20,7 @@ void RK4solver::setState(const Vector& state, double time) {
 
 const Vector& RK4solver::integrate(double time, int steps) {
   if(time <= this->time)
-    return Vector();
+    return state;
 
   double t = this->time;
   float stepSize = (time - t) / steps;
@@ -41,10 +43,11 @@ const Vector& RK4solver::integrate(double time, int steps) {
 }
 
 
-
 /*******************************************************************************
  *  MULTI-STATE SOLVER
  ******************************************************************************/
+
+MultiStateRK4solver::MultiStateRK4solver() {}
 
 MultiStateRK4solver::MultiStateRK4solver(MultiStateODEfn f, VecList state, double time) {
   this->f = f;
@@ -63,7 +66,7 @@ void MultiStateRK4solver::setState(const VecList& state, double time) {
 
 const VecList& MultiStateRK4solver::integrate(double time, int steps) {
   if(time <= this->time)
-    return VecList();
+    return state;
 
   double t = this->time;
   float stepSize = (time - t) / steps;

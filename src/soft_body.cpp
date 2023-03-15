@@ -7,7 +7,7 @@
 
 SoftBody::SoftBody() {}
 
-const std::vector<const Mass&>& SoftBody::getSurfaceMasses() const {
+const std::vector<const Mass*>& SoftBody::getSurfaceMasses() const {
   return surfaceMasses;
 }
 

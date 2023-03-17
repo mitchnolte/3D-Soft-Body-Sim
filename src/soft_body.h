@@ -9,10 +9,15 @@ class Spring;
 
 
 class SoftBody {
+protected:
   std::vector<Mass> masses;
   std::vector<const Mass*> surfaceMasses;
   std::vector<Spring> springs;
+  float mass;
   MultiStateRK4solver solver;
+
+  // Builds the mass-spring structure of the body.
+  virtual void buildStructure(Vector position, float size) = 0;
 
 public:
   SoftBody();

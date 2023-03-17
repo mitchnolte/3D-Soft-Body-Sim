@@ -4,7 +4,6 @@
 #include <functional>
 #include "vector.h"
 
-
 typedef std::function< Vector  (const Vector&,  double) >  ODEfn;
 typedef std::function< VecList (const VecList&, double) >  MultiStateODEfn;
 

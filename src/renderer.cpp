@@ -19,11 +19,11 @@ void Renderer::display(Simulation& sim) {
   // TEMP COMMENT: Set uniform variables that apply to everything (light, camera, etc.)
 
   // Display objects
-  const std::vector<SoftBody>& bodies = sim.getBodies();
+  const BodyList& bodies = sim.getBodies();
   glm::mat4 viewPerspective = camera.getViewPerspective();
-  for(const SoftBody& body : bodies) {
+  for(const std::shared_ptr<SoftBody> body : bodies) {
     updateMesh(body);
-    meshes[&body].display(program, viewPerspective);
+    meshes[body].display(program, viewPerspective);
   }
 }
 
@@ -33,8 +33,8 @@ void Renderer::display(Simulation& sim) {
  *        positions.
  * @param bodies Soft bodies in the simulation.
  */
-void Renderer::updateMesh(const SoftBody& body) {
-  const std::vector<const Mass*>& masses = body.getSurfaceMasses();
+void Renderer::updateMesh(std::shared_ptr<SoftBody> body) {
+  const std::vector<const Mass*>& masses = body->getSurfaceMasses();
   float vertices[masses.size() * 3];
   for(int i=0; i<masses.size(); i++) {
     Vector pos = masses[i]->getPos();
@@ -43,6 +43,6 @@ void Renderer::updateMesh(const SoftBody& body) {
     vertices[i*3 + 2] = pos[2];
   }
 
-  glBindBuffer(GL_ARRAY_BUFFER, meshes[&body].getVertexBuf());
+  glBindBuffer(GL_ARRAY_BUFFER, meshes[body].getVertexBuf());
   glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), &vertices);
 }

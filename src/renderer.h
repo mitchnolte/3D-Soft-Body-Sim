@@ -11,14 +11,14 @@
 class Renderer {
   GLuint program;
   Camera camera;
-  std::unordered_map<const SoftBody*, Mesh> meshes;
+  std::unordered_map<std::shared_ptr<SoftBody>, Mesh> meshes;
 
 public:
   Renderer();
   void initializeCamera(const glm::vec3& position, const glm::vec3& direction, float aspectRatio=1,
                         float fov=1.57);
   void display(Simulation& sim);
-  void updateMesh(const SoftBody& body);
+  void updateMesh(std::shared_ptr<SoftBody> body);
 };
 
 #endif

@@ -8,6 +8,7 @@
 typedef std::valarray<float> Vector;
 typedef std::vector<Vector> VecList;
 
+
 float vecDot(const Vector& u, const Vector& v);
 float vecNorm(const Vector& v);
 

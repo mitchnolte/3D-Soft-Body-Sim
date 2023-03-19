@@ -6,10 +6,10 @@
 
 
 class Camera {
-  float fov;              // Field of view
-  glm::mat4 projection;   // Projection matrix
   glm::vec3 position;     // Camera position
   glm::vec3 direction;    // Direction camera is looking
+  glm::mat4 projection;   // Projection matrix
+  float fov;              // Field of view
 
 public:
   Camera();

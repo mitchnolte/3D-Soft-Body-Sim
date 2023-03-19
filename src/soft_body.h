@@ -1,6 +1,7 @@
 #ifndef SOFT_BODY_H
 #define SOFT_BODY_H
 
+#include <GL/glew.h>
 #include "vector.h"
 #include "rk4_solver.h"
 
@@ -11,17 +12,16 @@ class Spring;
 class SoftBody {
 protected:
   std::vector<Mass> masses;
-  std::vector<const Mass*> surfaceMasses;
   std::vector<Spring> springs;
+  std::vector<Mass*> surfaceMasses;
   float mass;
   MultiStateRK4solver solver;
 
-  // Builds the mass-spring structure of the body.
-  virtual void buildStructure(Vector position, float size) = 0;
-
 public:
   SoftBody();
-  const std::vector<const Mass*>& getSurfaceMasses() const;
+  SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
+           const std::vector<int>& surfaceMassIndices);
+  const std::vector<Mass*>& getSurfaceMasses() const;
   void update(double time);
   VecList ode(const VecList& states, double time);
 };
@@ -31,7 +31,7 @@ class Mass {
   Vector state;    // Current state of mass; updated at end of time step
 
 public:
-  Mass(Vector pos=Vector(3), Vector vel=Vector(3));
+  explicit Mass(Vector pos=Vector(3), Vector vel=Vector(3));
   Vector getPos() const;
   Vector getVel() const;
   void update(const Vector& state);

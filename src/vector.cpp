@@ -11,6 +11,19 @@ VecList operator+(VecList l1, VecList l2) {
   return sum;
 }
 
+VecList operator+(float scalar, VecList list) {
+  int size = list.size();
+  VecList sum(size);
+  for(int i=0; i<size; i++) {
+    sum[i] = scalar + list[i];
+  }
+  return sum;
+}
+
+VecList operator+(VecList list, float scalar) {
+  return scalar + list;
+}
+
 VecList operator*(VecList l1, VecList l2) {
   int size = l1.size();
   VecList product(size);

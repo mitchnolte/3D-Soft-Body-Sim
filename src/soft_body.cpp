@@ -2,12 +2,25 @@
 
 
 /*******************************************************************************
- *  SOFT BODY CLASS
+ *  SOFT BODY
  ******************************************************************************/
 
 SoftBody::SoftBody() {}
 
-const std::vector<const Mass*>& SoftBody::getSurfaceMasses() const {
+SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
+                   const std::vector<int>& surfaceMassIndices)
+{
+  this->masses = masses;
+  this->springs = springs;
+  this->surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
+  for(int i=0; i<surfaceMasses.size(); i++) {
+    surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
+  }
+
+  solver.setODEfunction(std::bind(&SoftBody::ode, this, VecList(), 0.0));
+}
+
+const std::vector<Mass*>& SoftBody::getSurfaceMasses() const {
   return surfaceMasses;
 }
 
@@ -34,7 +47,7 @@ VecList SoftBody::ode(const VecList& states, double time) {
 
 
 /*******************************************************************************
- *  MASS CLASS
+ *  MASS
  ******************************************************************************/
 
 Mass::Mass(Vector pos, Vector vel) {
@@ -57,7 +70,7 @@ void Mass::update(const Vector& state) {
 
 
 /*******************************************************************************
- *  SPRING CLASS
+ *  SPRING
  ******************************************************************************/
 
 Spring::Spring(int mass1, int mass2, float k, float c, float restLen) {
@@ -72,6 +85,14 @@ int* Spring::getMassIndices() {
   return masses;
 }
 
+
+/**
+ * @brief Calculates the force exerted on the masses on either end of the
+ *        spring.
+ * @param m1State State of the first mass attached to the spring.
+ * @param m2State State of the second mass attached to the spring.
+ * @return The force exerted on the masses.
+ */
 Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State) {
 
   // Relative velocity and direction

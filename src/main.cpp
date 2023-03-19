@@ -13,7 +13,7 @@
 #include "shaders.h"
 #include "renderer.h"
 #include "simulation.h"
-#include "soft_shapes.h"
+#include "soft_body_factory.h"
 
 #define WIN_WIDTH  640.0
 #define WIN_HEIGHT 640.0
@@ -65,21 +65,27 @@ int main() {
   glfwSwapInterval(1);
 
   // Load shader program
-  glUseProgram(buildProgram(buildShader(GL_VERTEX_SHADER, "vertex_shader.vs"),
-                            buildShader(GL_FRAGMENT_SHADER, "fragment_shader.fs"), 0));
+  GLuint program = buildProgram(buildShader(GL_VERTEX_SHADER, "vertex_shader.vs"),
+                                buildShader(GL_FRAGMENT_SHADER, "fragment_shader.fs"), 0);
+  glUseProgram(program);
+
+  // Initialize simulation
+  Simulation sim(1/STEP_RATE);
+  SoftBodyFactory factory;
+  SoftBody cube;
+  Mesh cubeMesh;
+  std::tie(cube, cubeMesh) = factory.buildCube();
+  sim.addBody(cube);
 
   // Initialize renderer
   float ratio = WIN_WIDTH / WIN_HEIGHT;
+  renderer.setProgram(program);
   renderer.initializeCamera(glm::vec3(0.0, -5.0, 1.8), glm::vec3(0.0, 1.0, 0.0), ratio);
-  
-  // Initialize simulation
-  Simulation sim(1/STEP_RATE);
-  std::shared_ptr<SoftBody> cube(new SoftCube());
-  sim.addBody(cube);
+  renderer.bindMesh(cubeMesh, &sim.getBodies()[0]);
 
   // Main loop
   while(!glfwWindowShouldClose(window)) {
-    sim.update();
+    // sim.update();
     renderer.display(sim);
     glfwSwapBuffers(window);
     glfwPollEvents();

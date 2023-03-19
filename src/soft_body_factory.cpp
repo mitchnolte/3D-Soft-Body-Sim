@@ -1,25 +1,104 @@
-#include "soft_shapes.h"
+#include "soft_body_factory.h"
 
 
-SoftCube::SoftCube(Vector position, float size, int numCells) {
+unsigned int indexOf(const std::vector<int>& v, unsigned int i) {
+  return std::distance(v.begin(), std::find(v.begin(), v.end(), i));
+}
+
+std::vector<GLuint> SoftBodyFactory::getCubeVertexIndices(const std::vector<int>& surfaceMasses,
+                         int cellsPerAxis, std::vector<std::vector<std::vector<CubeCell>>>& cells)
+{
+  std::vector<GLuint> indices;
+  CubeCell* cell;
+
+  // Triangles on x-axis min. and max. sides (left and right)
+  for(int y=1; y<=cellsPerAxis; y++) {
+    for(int z=1; z<=cellsPerAxis; z++) {
+      cell = &cells[0][y][z];
+      indices.insert(indices.end(), {cell->hhl, cell->hll, cell->hhh,
+                                     cell->hhh, cell->hll, cell->hlh});
+
+      cell = &cells[cellsPerAxis][y][z];
+      indices.push_back(indexOf(surfaceMasses, cell->hhh));
+      indices.push_back(indexOf(surfaceMasses, cell->hll));
+      indices.push_back(indexOf(surfaceMasses, cell->hhl));
+      indices.push_back(indexOf(surfaceMasses, cell->hlh));
+      indices.push_back(indexOf(surfaceMasses, cell->hll));
+      indices.push_back(indexOf(surfaceMasses, cell->hhh));
+    }
+  }
   
-  // Round number of cells to nearest cube
-  numCells = pow(round(cbrt(numCells)), 3);
-  this->numCells = numCells;
-  buildStructure(position, size);
+  // Triangles on y-axis min. and max. sides (front and back)
+  for(int x=1; x<=cellsPerAxis; x++) {
+    for(int z=1; z<=cellsPerAxis; z++) {
+      cell = &cells[x][0][z];
+      indices.insert(indices.end(), {cell->lhl, cell->hhl, cell->lhh,
+                                     cell->lhh, cell->hhl, cell->hhh});
+
+      cell = &cells[x][cellsPerAxis][z];
+      indices.push_back(indexOf(surfaceMasses, cell->lhh));
+      indices.push_back(indexOf(surfaceMasses, cell->hhl));
+      indices.push_back(indexOf(surfaceMasses, cell->lhl));
+      indices.push_back(indexOf(surfaceMasses, cell->hhh));
+      indices.push_back(indexOf(surfaceMasses, cell->hhl));
+      indices.push_back(indexOf(surfaceMasses, cell->lhh));
+    }
+  }
+
+  // Triangles on z-axis min. and max. sides (bottom and top)
+  for(int x=1; x<=cellsPerAxis; x++) {
+    for(int y=1; y<=cellsPerAxis; y++) {
+      cell = &cells[x][y][0];
+      indices.insert(indices.end(), {cell->llh, cell->lhh, cell->hlh,
+                                     cell->hlh, cell->lhh, cell->hhh});
+
+      cell = &cells[x][y][cellsPerAxis];
+      indices.push_back(indexOf(surfaceMasses, cell->hlh));
+      indices.push_back(indexOf(surfaceMasses, cell->lhh));
+      indices.push_back(indexOf(surfaceMasses, cell->llh));
+      indices.push_back(indexOf(surfaceMasses, cell->hhh));
+      indices.push_back(indexOf(surfaceMasses, cell->lhh));
+      indices.push_back(indexOf(surfaceMasses, cell->hlh));
+    }
+  }
+
+  return indices;
 }
 
 
-CubeCell SoftCube::buildCell(Vector& cellCenter, float cellSize,
-                             CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ)
+Mesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasses, const SoftBody& cube,
+                               std::vector<std::vector<std::vector<CubeCell>>>& cells, int numCells)
+{
+  // Get vertex positions
+  const std::vector<Mass*>& masses = cube.getSurfaceMasses();
+  int cellsPerAxis = cbrt(numCells);
+  int numV = surfaceMasses.size() * 3;
+  GLfloat vertices[numV];
+  GLfloat normals[numV];
+  for(int i=0; i<surfaceMasses.size(); i++) {
+    Vector pos = masses[i]->getPos();
+    vertices[i*3]     = pos[0];
+    vertices[i*3 + 1] = pos[1];
+    vertices[i*3 + 2] = pos[2];
+  }
+
+  // Get vertex indices
+  std::vector<GLuint> indices = getCubeVertexIndices(surfaceMasses, cellsPerAxis, cells);
+
+  return Mesh(vertices, normals, indices.data(), numV, indices.size());
+}
+
+
+CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, Vector& cellCenter,
+                                  float cellSize, CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ)
 {
   CubeCell cell;
 
   // Create new masses
-  masses.push_back(Mass(cellCenter));
-  cell.center = {&masses.back(), masses.size()-1};
-  masses.push_back(Mass(cellCenter + cellSize/2));
-  cell.hhh = {&masses.back(), masses.size()-1};
+  masses.emplace_back(cellCenter);
+  cell.center = masses.size()-1;
+  masses.emplace_back(cellCenter + cellSize/2);
+  cell.hhh = masses.size()-1;
 
   // Connect to previous cell in z-axis
   cell.lll = cellZ.llh;
@@ -40,24 +119,41 @@ CubeCell SoftCube::buildCell(Vector& cellCenter, float cellSize,
 
 /**
  * @brief Builds the mass-spring structure for a cube out of 2x2x2 cells of
- *        masses with one more mass in the center.
+ *        masses with one more mass in the center. The given number of cells is
+ *        rounded to the nearest cubic number.
  * @param position Position of the center of the cube.
  * @param size Side length of the cube.
+ * @param numCells Number of cells in the cube.
+ * @param k Spring coefficient.
+ * @param c Damping coefficient.
+ * @return Pair including the cube and a mesh to display it.
  */
-void SoftCube::buildStructure(Vector position, float size) {
+std::pair<SoftBody, Mesh> SoftBodyFactory::buildCube(Vector position, float size,
+                                                     unsigned int numCells, float k, float c)
+{ 
+  std::vector<Mass> masses;
+  std::vector<Spring> springs;
+  std::vector<int> surfaceMasses;
 
-  // Spring constants
-  float k = 10;   // Spring coefficient
-  float c = 0.2;  // Damping coefficient
+  // Round number of cells to nearest cube
+  numCells = pow(round(cbrt(numCells)), 3);
+  int cellsPerAxis = cbrt(numCells);
 
-  float cellSize = size / numCells;                         // Cell side length
+  float cellSize = size / cellsPerAxis;                     // Cell side length
   float halfCellSize = cellSize/2;
   float vertexDist = vecNorm(Vector(size/2, 3));            // Distance from center to vertices
   Vector firstCellCenter = position - size/2 + halfCellSize;
   Vector cellCenter;                                        // Center of current cell
   
-  int cellsPerAxis = cbrt(numCells);
-  CubeCell cells[cellsPerAxis+1][cellsPerAxis+1][cellsPerAxis+1];
+  std::vector<std::vector<std::vector<CubeCell>>> cells;
+  cells.resize(cellsPerAxis+1);
+  for(int i=0; i<cellsPerAxis+1; i++) {
+    cells[i].resize(cellsPerAxis+1);
+    for(int j=0; j<cellsPerAxis+1; j++) {
+      cells[i][j].resize(cellsPerAxis+1);
+    }
+  }
+  
 
 
   /**
@@ -67,25 +163,30 @@ void SoftCube::buildStructure(Vector position, float size) {
   // Cells below z-axis minimum
   CubeCell* cell = &cells[1][1][0];
   Vector massPos = firstCellCenter - halfCellSize;
-  masses.push_back(Mass(massPos));
-  surfaceMasses.push_back(&masses.back());
-  cell->llh = {&masses.back(), masses.size()-1};
-  
-  massPos[1] += cellSize;
-  masses.push_back(Mass(massPos));
-  surfaceMasses.push_back(&masses.back());
-  cell->lhh = {&masses.back(), masses.size()-1};
-  
-  massPos += Vector{cellSize, -cellSize, 0};
-  masses.push_back(Mass(massPos));
-  surfaceMasses.push_back(&masses.back());
-  cell->hlh = {&masses.back(), masses.size()-1};
-  
-  massPos[1] += cellSize;
-  masses.push_back(Mass(massPos));
-  surfaceMasses.push_back(&masses.back());
-  cell->hhh = {&masses.back(), masses.size()-1};
+  masses.emplace_back(massPos);
+  // masses.push_back(Mass(massPos));
+  cell->llh = masses.size()-1;
+  surfaceMasses.push_back(cell->llh);
 
+  massPos[1] += cellSize;
+  masses.emplace_back(massPos);
+  // masses.push_back(Mass(massPos));
+  cell->lhh = masses.size()-1;
+  surfaceMasses.push_back(cell->lhh);
+
+  massPos += Vector{cellSize, -cellSize, 0};
+  masses.emplace_back(massPos);
+  // masses.push_back(Mass(massPos));
+  cell->hlh = masses.size()-1;
+  surfaceMasses.push_back(cell->hlh);
+
+  massPos[1] += cellSize;
+  masses.emplace_back(massPos);
+  // masses.push_back(Mass(massPos));
+  cell->hhh =  masses.size()-1;
+  surfaceMasses.push_back(cell->hhh);
+
+  // First y-axis row
   cellCenter = firstCellCenter + Vector{0, cellSize, -cellSize};
   for(int y=2; y<cellsPerAxis+1; y++) {
     CubeCell* priorCell = cell;
@@ -93,17 +194,20 @@ void SoftCube::buildStructure(Vector position, float size) {
     cell->llh = priorCell->lhh;
     cell->hlh = priorCell->hhh;
 
-    masses.push_back(Mass(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize}));
-    surfaceMasses.push_back(&masses.back());
-    cell->lhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize});
+    // masses.push_back(Mass(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize}));
+    cell->lhh = masses.size()-1;
+    surfaceMasses.push_back(cell->lhh);
 
-    masses.push_back(Mass(cellCenter + halfCellSize));
-    surfaceMasses.push_back(&masses.back());
-    cell->hhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + halfCellSize);
+    // masses.push_back(Mass(cellCenter + halfCellSize));
+    cell->hhh = masses.size()-1;
+    surfaceMasses.push_back(cell->hhh);
 
     cellCenter[1] += cellSize;
   }
 
+  // 
   cellCenter = firstCellCenter + Vector{cellSize, 0, -cellSize};
   for(int x=2; x<cellsPerAxis+1; x++) {
     CubeCell* priorCellX = &cells[x-1][1][0];
@@ -111,13 +215,15 @@ void SoftCube::buildStructure(Vector position, float size) {
     cell->llh = priorCellX->hlh;
     cell->lhh = priorCellX->hhh;
 
-    masses.push_back(Mass(cellCenter + Vector{halfCellSize, -halfCellSize, halfCellSize}));
-    surfaceMasses.push_back(&masses.back());
-    cell->hlh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + Vector{halfCellSize, -halfCellSize, halfCellSize});
+    // masses.push_back(Mass(cellCenter + Vector{halfCellSize, -halfCellSize, halfCellSize}));
+    cell->hlh = masses.size()-1;
+    surfaceMasses.push_back(cell->hlh);
 
-    masses.push_back(Mass(cellCenter + halfCellSize));
-    surfaceMasses.push_back(&masses.back());
-    cell->hhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + halfCellSize);
+    // masses.push_back(Mass(cellCenter + halfCellSize));
+    cell->hhh = masses.size()-1;
+    surfaceMasses.push_back(cell->hhh);
 
     cellCenter[1] += cellSize;
     for(int y=2; y<cellsPerAxis+1; y++) {
@@ -128,9 +234,9 @@ void SoftCube::buildStructure(Vector position, float size) {
       cell->lhh = priorCellX->hhh;
       cell->hlh = priorCellY->hhh;
 
-      masses.push_back(Mass(cellCenter + halfCellSize));
-      surfaceMasses.push_back(&masses.back());
-      cell->hhh = {&masses.back(), masses.size()-1};
+      masses.emplace_back(cellCenter + halfCellSize);
+      cell->hhh = masses.size()-1;
+      surfaceMasses.push_back(cell->hhh);
 
       cellCenter[1] += cellSize;
     }
@@ -140,19 +246,19 @@ void SoftCube::buildStructure(Vector position, float size) {
 
 
   // Cells below y-axis minimum
-  CubeCell* cell = &cells[1][0][1];
+  cell = &cells[1][0][1];
   cell->lhl = cells[1][1][0].llh;
   cell->hhl = cells[1][1][0].hlh;
-  
+
   massPos = firstCellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize};
-  masses.push_back(Mass(massPos));
-  surfaceMasses.push_back(&masses.back());
-  cell->lhh = {&masses.back(), masses.size()-1};
-  
+  masses.emplace_back(massPos);
+  cell->lhh = masses.size()-1;
+  surfaceMasses.push_back(cell->lhh);
+
   massPos[0] += cellSize;
-  masses.push_back(Mass(massPos));
-  surfaceMasses.push_back(&masses.back());
-  cell->hhh = {&masses.back(), masses.size()-1};
+  masses.emplace_back(massPos);
+  cell->hhh = masses.size()-1;
+  surfaceMasses.push_back(cell->hhh);
 
   cellCenter = firstCellCenter + Vector{0, -cellSize, cellSize};
   for(int z=2; z<cellsPerAxis+1; z++) {
@@ -161,13 +267,13 @@ void SoftCube::buildStructure(Vector position, float size) {
     cell->lhl = priorCell->lhh;
     cell->hhl = priorCell->hhh;
 
-    masses.push_back(Mass(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize}));
-    surfaceMasses.push_back(&masses.back());
-    cell->lhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize});
+    cell->lhh = masses.size()-1;
+    surfaceMasses.push_back(cell->lhh);
 
-    masses.push_back(Mass(cellCenter + halfCellSize));
-    surfaceMasses.push_back(&masses.back());
-    cell->hhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + halfCellSize);
+    cell->hhh = masses.size()-1;
+    surfaceMasses.push_back(cell->hhh);
 
     cellCenter[2] += cellSize;
   }
@@ -181,9 +287,9 @@ void SoftCube::buildStructure(Vector position, float size) {
     cell->lhh = priorCellX->hhh;
     cell->hhl = priorCellZ->hlh;
 
-    masses.push_back(Mass(cellCenter + halfCellSize));
-    surfaceMasses.push_back(&masses.back());
-    cell->hhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + halfCellSize);
+    cell->hhh = masses.size()-1;
+    surfaceMasses.push_back(cell->hhh);
 
     cellCenter[2] += cellSize;
     for(int z=2; z<cellsPerAxis+1; z++) {
@@ -194,9 +300,9 @@ void SoftCube::buildStructure(Vector position, float size) {
       cell->lhh = priorCellX->hhh;
       cell->hhl = priorCellZ->hhh;
 
-      masses.push_back(Mass(cellCenter + halfCellSize));
-      surfaceMasses.push_back(&masses.back());
-      cell->hhh = {&masses.back(), masses.size()-1};
+      masses.emplace_back(cellCenter + halfCellSize);
+      cell->hhh = masses.size()-1;
+      surfaceMasses.push_back(cell->hhh);
 
       cellCenter[2] += cellSize;
     }
@@ -206,15 +312,15 @@ void SoftCube::buildStructure(Vector position, float size) {
 
 
   // Cells below x-axis minimum
-  CubeCell* cell = &cells[0][1][1];
+  cell = &cells[0][1][1];
   cell->hll = cells[1][1][0].llh;
   cell->hhl = cells[1][1][0].lhh;
   cell->hlh = cells[1][0][1].lhh;
 
   massPos = firstCellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize};
-  masses.push_back(Mass(massPos));
-  surfaceMasses.push_back(&masses.back());
-  cell->hhh = {&masses.back(), masses.size()-1};
+  masses.emplace_back(massPos);
+  cell->hhh = masses.size()-1;
+  surfaceMasses.push_back(cell->hhh);
 
   cellCenter = firstCellCenter + Vector{-cellSize, 0, cellSize};
   for(int z=2; z<cellsPerAxis+1; z++) {
@@ -224,9 +330,9 @@ void SoftCube::buildStructure(Vector position, float size) {
     cell->hhl = priorCell->hhh;
     cell->hlh = cells[1][0][z].lhh;
 
-    masses.push_back(Mass(cellCenter + halfCellSize));
-    surfaceMasses.push_back(&masses.back());
-    cell->hhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + halfCellSize);
+    cell->hhh = masses.size()-1;
+    surfaceMasses.push_back(cell->hhh);
 
     cellCenter[2] += cellSize;
   }
@@ -240,9 +346,9 @@ void SoftCube::buildStructure(Vector position, float size) {
     cell->hlh = priorCellY->hhh;
     cell->hhl = priorCellZ->lhh;
 
-    masses.push_back(Mass(cellCenter + halfCellSize));
-    surfaceMasses.push_back(&masses.back());
-    cell->hhh = {&masses.back(), masses.size()-1};
+    masses.emplace_back(cellCenter + halfCellSize);
+    cell->hhh = masses.size()-1;
+    surfaceMasses.push_back(cell->hhh);
 
     cellCenter[2] += cellSize;
     for(int z=2; z<cellsPerAxis+1; z++) {
@@ -253,9 +359,9 @@ void SoftCube::buildStructure(Vector position, float size) {
       cell->hlh = priorCellY->hhh;
       cell->hhl = priorCellZ->hhh;
 
-      masses.push_back(Mass(cellCenter + halfCellSize));
-      surfaceMasses.push_back(&masses.back());
-      cell->hhh = {&masses.back(), masses.size()-1};
+      masses.emplace_back(cellCenter + halfCellSize);
+      cell->hhh = masses.size()-1;
+      surfaceMasses.push_back(cell->hhh);
 
       cellCenter[2] += cellSize;
     }
@@ -268,13 +374,13 @@ void SoftCube::buildStructure(Vector position, float size) {
    * Create cube
    */
   cellCenter = firstCellCenter;
-  for(int x=1; x<cellsPerAxis+1; x++) {
-    for(int y=1; y<cellsPerAxis+1; y++) {
-      for(int z=1; z<cellsPerAxis+1; z++) {
-        cells[x][y][z] = buildCell(cellCenter, cellSize, cells[x-1][y][z],
-                                   cells[x][y-1][z], cells[x][y][z-1]);
-        if(x == cellsPerAxis+1 || y == cellsPerAxis+1 || z == cellsPerAxis+1)
-          surfaceMasses.push_back(cells[x][y][z].hhh.mass);
+  for(int x=1; x<=cellsPerAxis; x++) {
+    for(int y=1; y<=cellsPerAxis; y++) {
+      for(int z=1; z<=cellsPerAxis; z++) {
+        cells[x][y][z] = buildCubeCell(masses, cellCenter, cellSize, cells[x-1][y][z],
+                                       cells[x][y-1][z], cells[x][y][z-1]);
+        if(x == cellsPerAxis || y == cellsPerAxis || z == cellsPerAxis)
+          surfaceMasses.push_back(cells[x][y][z].hhh);
         cellCenter[2] += cellSize;        // Increment cell z position 
       }
       cellCenter[1] += cellSize;          // Increment cell y position
@@ -284,6 +390,8 @@ void SoftCube::buildStructure(Vector position, float size) {
     cellCenter[1] = firstCellCenter[1];   // Reset cell y position
   }
 
+  SoftBody cube(masses, springs, surfaceMasses);
+  return std::pair<SoftBody, Mesh>(cube, buildCubeMesh(surfaceMasses, cube, cells, numCells));
 
 
 

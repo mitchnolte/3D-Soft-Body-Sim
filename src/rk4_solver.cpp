@@ -9,12 +9,16 @@ RK4solver::RK4solver(ODEfn f, Vector state, double time) {
   this->time = time;
 }
 
-const Vector& RK4solver::getState() {
-  return state;
+void RK4solver::setODEfunction(ODEfn odeFunction) {
+  f = odeFunction;
 }
 
 void RK4solver::setState(const Vector& state, double time) {
   this->state = state;
+}
+
+const Vector& RK4solver::getState() {
+  return state;
 }
 
 
@@ -55,12 +59,16 @@ MultiStateRK4solver::MultiStateRK4solver(MultiStateODEfn f, VecList state, doubl
   this->time = time;
 }
 
-const VecList& MultiStateRK4solver::getState() {
-  return state;
-}
-
 void MultiStateRK4solver::setState(const VecList& state, double time) {
   this->state = state;
+}
+
+void MultiStateRK4solver::setODEfunction(MultiStateODEfn odeFunction) {
+  f = odeFunction;
+}
+
+const VecList& MultiStateRK4solver::getState() {
+  return state;
 }
 
 

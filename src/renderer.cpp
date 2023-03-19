@@ -1,3 +1,6 @@
+#define GLFW_DLL
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <GL/glew.h>
@@ -5,7 +8,38 @@
 #include "soft_body.h"
 
 
-Renderer::Renderer() {}
+Renderer::Renderer(float fps) : fps(fps) {}
+
+void Renderer::initializeCamController() {
+  camController.bindCamera(camera);
+  camController.setTimeStep(1/fps);
+
+  // Camera movement keys
+  KeyFn moveRight   = std::bind(&CameraController::moveCamera, &camController, glm::vec3{ 1, 0, 0});
+  KeyFn moveLeft    = std::bind(&CameraController::moveCamera, &camController, glm::vec3{-1, 0, 0});
+  KeyFn moveUp      = std::bind(&CameraController::moveCamera, &camController, glm::vec3{ 0, 1, 0});
+  KeyFn moveDown    = std::bind(&CameraController::moveCamera, &camController, glm::vec3{ 0,-1, 0});
+  KeyFn moveBack    = std::bind(&CameraController::moveCamera, &camController, glm::vec3{ 0, 0, 1});
+  KeyFn moveForward = std::bind(&CameraController::moveCamera, &camController, glm::vec3{ 0, 0,-1});
+
+  keyBindings[GLFW_KEY_W] = std::make_pair(moveForward, moveBack);      // Move camera forwards  (W)
+  keyBindings[GLFW_KEY_A] = std::make_pair(moveLeft, moveRight);        // Move camera left      (A)
+  keyBindings[GLFW_KEY_S] = std::make_pair(moveBack, moveForward);      // Move camera backwards (S)
+  keyBindings[GLFW_KEY_D] = std::make_pair(moveRight, moveLeft);        // Move camera right     (D)
+  keyBindings[GLFW_KEY_SPACE] = std::make_pair(moveUp, moveDown);       // Move camera up    (SPACE)
+  keyBindings[GLFW_KEY_LEFT_SHIFT] = std::make_pair(moveDown, moveUp);  // Move camera down  (SHIFT)
+
+  // Camera rotation keys
+  KeyFn rotateRight = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{-1,0,0});
+  KeyFn rotateLeft  = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{ 1,0,0});
+  KeyFn rotateUp    = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{ 0,1,0});
+  KeyFn rotateDown  = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{0,-1,0});
+
+  keyBindings[GLFW_KEY_RIGHT] = std::make_pair(rotateRight, rotateLeft);
+  keyBindings[GLFW_KEY_LEFT] = std::make_pair(rotateLeft, rotateRight);
+  keyBindings[GLFW_KEY_UP] = std::make_pair(rotateUp, rotateDown);
+  keyBindings[GLFW_KEY_DOWN] = std::make_pair(rotateDown, rotateUp);
+}
 
 void Renderer::setProgram(GLuint program) {
   this->shaderProgram = program;
@@ -25,6 +59,7 @@ void Renderer::initializeCamera(const glm::vec3& position, const glm::vec3& dire
                                 float aspectRatio, float fov)
 {
   camera = Camera(position, direction, aspectRatio, fov);
+  initializeCamController();
 }
 
 
@@ -47,6 +82,20 @@ void Renderer::updateMesh(const SoftBody& body) {
 }
 
 
+void Renderer::handleKeyInput(int key, int action) {
+  if(action == GLFW_PRESS) {
+    if(keyBindings.count(key) > 0) {
+      keyBindings[key].first(glm::vec3());
+    }
+  } 
+  else if(action == GLFW_RELEASE) {
+    if(keyBindings.count(key) > 0) {
+      keyBindings[key].second(glm::vec3());
+    }
+  }
+}
+
+
 /**
  * @brief Render the simulation.
  */
@@ -56,8 +105,9 @@ void Renderer::display(const Simulation& sim) {
   // TEMP COMMENT: Set uniform variables that apply to everything (light, camera, etc.)
 
   // Display objects
-  const std::vector<SoftBody>& bodies = sim.getBodies();
+  camController.updateCamera();
   glm::mat4 viewPerspective = camera.getViewPerspective();
+  const std::vector<SoftBody>& bodies = sim.getBodies();
   for(const SoftBody& body : bodies) {
     // updateMesh(body);
     meshes[&body].display(shaderProgram, viewPerspective);

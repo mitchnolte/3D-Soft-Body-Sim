@@ -2,6 +2,7 @@
 
 float vecDot(const Vector& u, const Vector& v) {return (u * v).sum();}
 float vecNorm(const Vector& v)                 {return sqrt(vecDot(v, v));}
+Vector normalize(const Vector& v)              {return v / vecNorm(v);}
 
 VecList operator+(VecList l1, VecList l2) {
   int size = l1.size();

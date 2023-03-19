@@ -15,7 +15,7 @@ void Mesh::loadVertexData(GLfloat vertices[], GLfloat normals[], GLuint indices[
   GLuint vertexBuf;
   GLuint indexBuf;
 
-  // Load vertex coordinate data
+  // Load vertex coordinates and normals
   glGenBuffers(1, &vertexBuf);
   glBindBuffer(GL_ARRAY_BUFFER, vertexBuf);
   glBufferData(GL_ARRAY_BUFFER, 2*numV*sizeof(GLfloat), NULL, GL_STATIC_DRAW);

@@ -1,6 +1,61 @@
 #include "soft_body_factory.h"
 
 
+/**
+ * Calculates the normal vector of a triangle with the 3 given points.
+ */
+std::vector<GLfloat> triangleNormal(GLfloat p1[3], GLfloat p2[3], GLfloat p3[3]) {
+  GLfloat u[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
+  GLfloat v[3] = {p3[0]-p2[0], p3[1]-p2[1], p3[2]-p2[2]};
+
+  // Cross product
+  return std::vector<GLfloat>{(u[1]*v[2] - u[2]*v[1]),
+                              (u[2]*v[0] - u[0]*v[2]),
+                              (u[0]*v[1] - u[1]*v[0])};
+}
+
+
+/**
+ * @brief Computes the normal vectors for a mesh.
+ * @param vertices List of vertex coordinates.
+ * @param indices List of Vertex indices.
+ * @param numV Number of vertices.
+ * @param numI Number of indices.
+ * @return List of normals.
+ */
+std::vector<GLfloat> computeNormals(GLfloat* vertices, GLuint* indices, int numV, int numI) {
+  std::vector<GLfloat> normals(numV);
+  for(int i=0; i<numI; i+=3) {
+    int v1Index = 3*indices[i];
+    int v2Index = 3*indices[i+1];
+    int v3Index = 3*indices[i+2];
+    GLfloat p1[3] = {vertices[v1Index], vertices[v1Index+1], vertices[v1Index+2]};
+    GLfloat p2[3] = {vertices[v2Index], vertices[v2Index+1], vertices[v2Index+2]};
+    GLfloat p3[3] = {vertices[v3Index], vertices[v3Index+1], vertices[v3Index+2]};
+    std::vector<GLfloat> norm = triangleNormal(p1, p2, p3);
+    normals[v1Index]   += norm[0];
+    normals[v1Index+1] += norm[1];
+    normals[v1Index+2] += norm[2];
+    normals[v2Index]   += norm[0];
+    normals[v2Index+1] += norm[1];
+    normals[v2Index+2] += norm[2];
+    normals[v3Index]   += norm[0];
+    normals[v3Index+1] += norm[1];
+    normals[v3Index+2] += norm[2];
+  }
+  
+  // Normalize normals
+  for(int i=0; i<numV; i+=3) {
+    GLfloat len = vecNorm(Vector{normals[i], normals[i+1], normals[i+2]});
+    normals[i]   /= len;
+    normals[i+1] /= len;
+    normals[i+2] /= len;
+  }
+
+  return normals;
+}
+
+
 unsigned int indexOf(const std::vector<int>& v, unsigned int i) {
   return std::distance(v.begin(), std::find(v.begin(), v.end(), i));
 }
@@ -74,7 +129,6 @@ Mesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasses, const
   int cellsPerAxis = cbrt(numCells);
   int numV = surfaceMasses.size() * 3;
   GLfloat vertices[numV];
-  GLfloat normals[numV];
   for(int i=0; i<surfaceMasses.size(); i++) {
     Vector pos = masses[i]->getPos();
     vertices[i*3]     = pos[0];
@@ -82,10 +136,11 @@ Mesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasses, const
     vertices[i*3 + 2] = pos[2];
   }
 
-  // Get vertex indices
+  // Get vertex indices and normals
   std::vector<GLuint> indices = getCubeVertexIndices(surfaceMasses, cellsPerAxis, cells);
+  std::vector<GLfloat> normals = computeNormals(vertices, indices.data(), numV, indices.size());
 
-  return Mesh(vertices, normals, indices.data(), numV, indices.size());
+  return Mesh(vertices, normals.data(), indices.data(), numV, indices.size());
 }
 
 
@@ -390,249 +445,9 @@ std::pair<SoftBody, Mesh> SoftBodyFactory::buildCube(Vector position, float size
     cellCenter[1] = firstCellCenter[1];   // Reset cell y position
   }
 
+  masses.shrink_to_fit();
+  springs.shrink_to_fit();
+  surfaceMasses.shrink_to_fit();
   SoftBody cube(masses, springs, surfaceMasses);
   return std::pair<SoftBody, Mesh>(cube, buildCubeMesh(surfaceMasses, cube, cells, numCells));
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-//   for(int x=0; x<cellsPerAxis; x++) {
-//     for(int y=0; y<cellsPerAxis; y++) {
-//       for(int z=0; z<cellsPerAxis; z++) {
-//         CubeCell& cell = cells[x][y][z];
-// 
-//         // Create cell masses where necessary
-//         masses.push_back(Mass(cellCenter));
-//         cell.center = {&masses.back(), masses.size()-1};
-// 
-//         if(x == 0) {
-//           if(y == 0) {
-//             if(z == 0) {
-//               masses.push_back(Mass(cellCenter - Vector(vertexDist, 3)));
-//               surfaceMasses.push_back(&masses.back());
-//               cell.lll = {&masses.back(), masses.size()-1};
-//             }
-//             masses.push_back(Mass(cellCenter + Vector{-vertexDist, -vertexDist, vertexDist}));
-//             surfaceMasses.push_back(&masses.back());
-//             cell.llh = {&masses.back(), masses.size()-1};
-//           }
-// 
-//           if(z == 0) {
-//             masses.push_back(Mass(cellCenter + Vector{-vertexDist, vertexDist, -vertexDist}));
-//             surfaceMasses.push_back(&masses.back());
-//             cell.lhl = {&masses.back(), masses.size()-1};
-//           }
-//           masses.push_back(Mass(cellCenter + Vector{-vertexDist, vertexDist, vertexDist}));
-//           surfaceMasses.push_back(&masses.back());
-//           cell.lhh = {&masses.back(), masses.size()-1};
-//         }
-//         
-//         if(y == 0) {
-//           if(z == 0) {
-//             masses.push_back(Mass(cellCenter + Vector{vertexDist, -vertexDist, -vertexDist}));
-//             surfaceMasses.push_back(&masses.back());
-//             cell.hll = {&masses.back(), masses.size()-1};
-//           }
-//           masses.push_back(Mass(cellCenter + Vector{vertexDist, -vertexDist, vertexDist}));
-//           surfaceMasses.push_back(&masses.back());
-//           cell.hlh = {&masses.back(), masses.size()-1};
-//         }
-// 
-//         if(z == 0) {
-//           masses.push_back(Mass(cellCenter + Vector{vertexDist, vertexDist, -vertexDist}));
-//           surfaceMasses.push_back(&masses.back());
-//           cell.hhl = {&masses.back(), masses.size()-1};
-//         }
-// 
-//         masses.push_back(Mass(cellCenter + Vector(vertexDist, 3)));
-//         cell.hhh = {&masses.back(), masses.size()-1};
-//         if(x == cellsPerAxis-1 || y == cellsPerAxis-1)
-//           surfaceMasses.push_back(&masses.back());
-//         
-//         // Connect to existing cells
-//         if(cell.lll.index == -1) cell.lll = cells[x][y][z-1].llh;
-//         if(cell.llh.index == -1) cell.llh = cells[x][y-1][z].lhh;
-//         if(cell.lhl.index == -1) cell.lhl = cells[x][y][z-1].lhh;
-//         if(cell.lhh.index == -1) cell.lhh = cells[x-1][y][z].hhh;
-// 
-//         if(cell.hll.index == -1) cell.hll = cells[x-1][y][z].hhh;
-// 
-// 
-// 
-// 
-// 
-//
-//
-//
-// 
-// 
-// 
-//         int xSurface=0, ySurface=0, zSurface=0;
-// 
-//         // Connect to existing cells
-//         if(x > 0) {
-//           CubeCell& cellX = cells[x-1][y][z];
-//           if(cellX.center.index != -1) {
-//             cell.lll = cellX.hll;
-//             cell.llh = cellX.hlh;
-//             cell.lhl = cellX.hhl;
-//             cell.lhh = cellX.hhh;
-//           }
-//         }
-//         else if(x == cellsPerAxis-1) xSurface = 1;
-//         else xSurface = -1;
-// 
-//         if(y > 0) {
-//           CubeCell& cellY = cells[x][y-1][z];
-//           if(cellY.center.index != -1) {
-//             cell.lll = cellY.lhl;
-//             cell.llh = cellY.lhh;
-//             cell.hll = cellY.hhl;
-//             cell.hlh = cellY.hhh;
-//           }
-//         }
-//         else if(y == cellsPerAxis-1) ySurface = 1;
-//         else ySurface = -1;
-// 
-//         if(z > 0) {
-//           CubeCell& cellZ = cells[x][y][z-1];
-//           if(cellZ.center.index != -1) {
-//             cell.lll = cellZ.llh;
-//             cell.lhl = cellZ.lhh;
-//             cell.hll = cellZ.hlh;
-//             cell.hhl = cellZ.hhh;
-//           }
-//         } 
-//         else if(z == cellsPerAxis-1) zSurface = 1;
-//         else zSurface = -1;
-// 
-//         // Create new masses and springs (PROBABLY GOING IN SEPARATE FUNCTION)
-//         masses.push_back(Mass(cellCenter));
-//         cell.center = {&masses.back(), masses.size()-1};
-//         if(cell.lll.index == -1) {
-//           masses.push_back(Mass(cellCenter - Vector(vertexDist, 3)));
-//           cell.lll = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.lll.index, k, c, vertexDist));
-//         }if(cell.llh.index == -1) {
-//           masses.push_back(Mass(cellCenter + Vector{-vertexDist, -vertexDist, vertexDist}));
-//           cell.llh = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.llh.index, k, c, vertexDist));
-//           springs.push_back(Spring(cell.lll.index,    cell.llh.index, k, c, cellSize));
-//         }if(cell.lhl.index == -1) {
-//           masses.push_back(Mass(cellCenter + Vector{-vertexDist, vertexDist, -vertexDist}));
-//           cell.lhl = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.lhl.index, k, c, vertexDist));
-//           springs.push_back(Spring(cell.lll.index,    cell.lhl.index, k, c, cellSize));
-//         }if(cell.lhh.index == -1) {
-//           masses.push_back(Mass(cellCenter + Vector{-vertexDist, vertexDist, vertexDist}));
-//           cell.lhh = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.lhh.index, k, c, vertexDist));
-//           springs.push_back(Spring(cell.llh.index,    cell.lhh.index, k, c, cellSize));
-//           springs.push_back(Spring(cell.lhl.index,    cell.lhh.index, k, c, cellSize));
-//         }if(cell.hll.index == -1) {
-//           masses.push_back(Mass(cellCenter + Vector{vertexDist, -vertexDist, -vertexDist}));
-//           cell.hll = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.hll.index, k, c, vertexDist));
-//           springs.push_back(Spring(cell.lll.index,    cell.lhl.index, k, c, cellSize));
-//         }if(cell.hlh.index == -1) {
-//           masses.push_back(Mass(cellCenter + Vector{vertexDist, -vertexDist, vertexDist}));
-//           cell.hlh = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.hlh.index, k, c, vertexDist));
-//           springs.push_back(Spring(cell.llh.index,    cell.hlh.index, k, c, cellSize));
-//           springs.push_back(Spring(cell.hll.index,    cell.hlh.index, k, c, cellSize));
-//         }if(cell.hhl.index == -1) {
-//           masses.push_back(Mass(cellCenter + Vector{vertexDist, vertexDist, -vertexDist}));
-//           cell.hhl = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.hhl.index, k, c, vertexDist));
-//           springs.push_back(Spring(cell.hhl.index,    cell.lhl.index, k, c, cellSize));
-//           springs.push_back(Spring(cell.hhl.index,    cell.hll.index, k, c, cellSize));
-//         }if(cell.hhh.index == -1) {
-//           masses.push_back(Mass(cellCenter + Vector(vertexDist, 3)));
-//           cell.hhh = {&masses.back(), masses.size()-1};
-//           springs.push_back(Spring(cell.center.index, cell.hhh.index, k, c, vertexDist));
-//           springs.push_back(Spring(cell.hhh.index,    cell.lhh.index, k, c, cellSize));
-//           springs.push_back(Spring(cell.hhh.index,    cell.hlh.index, k, c, cellSize));
-//           springs.push_back(Spring(cell.hhh.index,    cell.hhl.index, k, c, cellSize));
-//         }
-// 
-//         // Get surface masses (PROBABLY GOING IN SEPARATE FUNCTION (which also makes the mesh index array))
-// 
-//         // TODO:
-//         //   - need to check if masses had already been added to surface masses list
-//         //   - finish positive z surface (don't forget to change the 'lll' type names)
-//         
-//         if(xSurface == -1) {
-//           surfaceMasses.push_back(cell.lll.mass);
-//           surfaceMasses.push_back(cell.llh.mass);
-//           surfaceMasses.push_back(cell.lhl.mass);
-//           surfaceMasses.push_back(cell.lhh.mass);
-//         }else if(xSurface == 1) {
-//           surfaceMasses.push_back(cell.hll.mass);
-//           surfaceMasses.push_back(cell.hlh.mass);
-//           surfaceMasses.push_back(cell.hhl.mass);
-//           surfaceMasses.push_back(cell.hhh.mass);
-//         }
-//         if(ySurface == -1) {
-//           if(xSurface != -1) {
-//             surfaceMasses.push_back(cell.lll.mass);
-//             surfaceMasses.push_back(cell.llh.mass);
-//           }if(xSurface != 1) {
-//             surfaceMasses.push_back(cell.hll.mass);
-//             surfaceMasses.push_back(cell.hlh.mass);
-//           }
-//         }else if(ySurface == 1) {
-//           if(xSurface != -1) {
-//             surfaceMasses.push_back(cell.lhl.mass);
-//             surfaceMasses.push_back(cell.lhh.mass);
-//           }if(xSurface != 1) {
-//             surfaceMasses.push_back(cell.hhl.mass);
-//             surfaceMasses.push_back(cell.hhh.mass);
-//           }
-//         }
-//         if(zSurface == -1) {
-//           if(xSurface != -1) {
-//             if(ySurface != -1) surfaceMasses.push_back(cell.lll.mass);
-//             if(ySurface !=  1) surfaceMasses.push_back(cell.lhl.mass);
-//           }if(xSurface != 1) {
-//             if(ySurface != -1) surfaceMasses.push_back(cell.hll.mass);
-//             if(ySurface !=  1) surfaceMasses.push_back(cell.hhl.mass);
-//           }
-//         }else if(zSurface == 1) {
-//           if(xSurface != -1) {
-//             surfaceMasses.push_back(cell.lhl.mass);
-//             surfaceMasses.push_back(cell.lhh.mass);
-//           }if(xSurface != 1) {
-//             surfaceMasses.push_back(cell.hhl.mass);
-//             surfaceMasses.push_back(cell.hhh.mass);
-//           }
-//         }
-// 
-//         cellCenter[2] += cellSize;        // Increment cell z position 
-//       }
-//       cellCenter[1] += cellSize;          // Increment cell y position
-//       cellCenter[2] = firstCellCenter[2]; // Reset cell z position
-//     }
-//     cellCenter[0] += cellSize;            // Increment cell x position
-//     cellCenter[1] = firstCellCenter[1];   // Reset cell y position
-//   }
 }

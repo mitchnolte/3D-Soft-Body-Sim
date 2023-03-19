@@ -17,6 +17,7 @@
 
 #define WIN_WIDTH  640.0
 #define WIN_HEIGHT 640.0
+#define FRAME_RATE 60     // Display frames per second
 #define STEP_RATE  60     // Simulation updates per second
 
 
@@ -30,6 +31,13 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
 
 void error_callback(int error, const char* description) {
   fprintf(stderr, "Error: %s\n", description);
+}
+
+void keyCallback(GLFWwindow* window, int key, int code, int action, int mods) {
+  if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+    glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+  renderer.handleKeyInput(key, action);
 }
 
 
@@ -51,6 +59,7 @@ int main() {
   }
   glfwMakeContextCurrent(window);
   glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+  glfwSetKeyCallback(window, keyCallback);
 
   // Initialize glew
   GLenum error = glewInit();
@@ -79,6 +88,7 @@ int main() {
 
   // Initialize renderer
   float ratio = WIN_WIDTH / WIN_HEIGHT;
+  renderer = Renderer(FRAME_RATE);
   renderer.setProgram(program);
   renderer.initializeCamera(glm::vec3(0.0, -5.0, 1.8), glm::vec3(0.0, 1.0, 0.0), ratio);
   renderer.bindMesh(cubeMesh, &sim.getBodies()[0]);

@@ -2,16 +2,17 @@
 
 
 /**
- * Calculates the normal vector of a triangle with the 3 given points.
+ * @brief Calculates the normal vector of a triangle with the 3 given points.
+ * @param normal Ouput array.
  */
-std::vector<GLfloat> triangleNormal(GLfloat p1[3], GLfloat p2[3], GLfloat p3[3]) {
+void SoftBodyFactory::triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloat p3[3]) {
   GLfloat u[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
   GLfloat v[3] = {p3[0]-p2[0], p3[1]-p2[1], p3[2]-p2[2]};
 
   // Cross product
-  return std::vector<GLfloat>{(u[1]*v[2] - u[2]*v[1]),
-                              (u[2]*v[0] - u[0]*v[2]),
-                              (u[0]*v[1] - u[1]*v[0])};
+  normal[0] = (u[1]*v[2] - u[2]*v[1]);
+  normal[1] = (u[2]*v[0] - u[0]*v[2]),
+  normal[2] = (u[0]*v[1] - u[1]*v[0]);
 }
 
 
@@ -23,8 +24,11 @@ std::vector<GLfloat> triangleNormal(GLfloat p1[3], GLfloat p2[3], GLfloat p3[3])
  * @param numI Number of indices.
  * @return List of normals.
  */
-std::vector<GLfloat> computeNormals(GLfloat* vertices, GLuint* indices, int numV, int numI) {
+std::vector<GLfloat> SoftBodyFactory::computeNormals(GLfloat* vertices, GLuint* indices,
+                                                     int numV, int numI)
+{
   std::vector<GLfloat> normals(numV);
+  int triangleCount[numV/3] = {0};
   for(int i=0; i<numI; i+=3) {
     int v1Index = 3*indices[i];
     int v2Index = 3*indices[i+1];
@@ -32,7 +36,8 @@ std::vector<GLfloat> computeNormals(GLfloat* vertices, GLuint* indices, int numV
     GLfloat p1[3] = {vertices[v1Index], vertices[v1Index+1], vertices[v1Index+2]};
     GLfloat p2[3] = {vertices[v2Index], vertices[v2Index+1], vertices[v2Index+2]};
     GLfloat p3[3] = {vertices[v3Index], vertices[v3Index+1], vertices[v3Index+2]};
-    std::vector<GLfloat> norm = triangleNormal(p1, p2, p3);
+    GLfloat norm[3];
+    triangleNormal(norm, p1, p2, p3);
     normals[v1Index]   += norm[0];
     normals[v1Index+1] += norm[1];
     normals[v1Index+2] += norm[2];
@@ -42,10 +47,17 @@ std::vector<GLfloat> computeNormals(GLfloat* vertices, GLuint* indices, int numV
     normals[v3Index]   += norm[0];
     normals[v3Index+1] += norm[1];
     normals[v3Index+2] += norm[2];
+    triangleCount[indices[i]]++;
+    triangleCount[indices[i+1]]++;
+    triangleCount[indices[i+2]]++;
   }
   
-  // Normalize normals
+  // Average and normalize normals
   for(int i=0; i<numV; i+=3) {
+    normals[i]   /= triangleCount[indices[i/3]];
+    normals[i+1] /= triangleCount[indices[i/3 + 1]];
+    normals[i+2] /= triangleCount[indices[i/3 + 2]];
+
     GLfloat len = vecNorm(Vector{normals[i], normals[i+1], normals[i+2]});
     normals[i]   /= len;
     normals[i+1] /= len;
@@ -56,12 +68,21 @@ std::vector<GLfloat> computeNormals(GLfloat* vertices, GLuint* indices, int numV
 }
 
 
-unsigned int indexOf(const std::vector<int>& v, unsigned int i) {
+GLuint indexOf(const std::vector<int>& v, GLuint i) {
   return std::distance(v.begin(), std::find(v.begin(), v.end(), i));
 }
 
-std::vector<GLuint> SoftBodyFactory::getCubeVertexIndices(const std::vector<int>& surfaceMasses,
-                         int cellsPerAxis, std::vector<std::vector<std::vector<CubeCell>>>& cells)
+void duplicateVertex(std::vector<GLfloat>& vertices, std::vector<GLuint>& indices, GLuint i) {
+  vertices.push_back(vertices[3*indices[i]]);
+  vertices.push_back(vertices[3*indices[i] + 1]);
+  vertices.push_back(vertices[3*indices[i] + 2]);
+  indices[i] = vertices.size()/3 - 1;
+}
+
+
+std::vector<GLuint> SoftBodyFactory::getCubeVertexIndices(std::vector<GLfloat>& vertices,
+                                            const std::vector<int>& surfaceMasses, int cellsPerAxis,
+                                            std::vector<std::vector<std::vector<CubeCell>>>& cells)
 {
   std::vector<GLuint> indices;
   CubeCell* cell;
@@ -97,6 +118,37 @@ std::vector<GLuint> SoftBodyFactory::getCubeVertexIndices(const std::vector<int>
       indices.push_back(indexOf(surfaceMasses, cell->hhh));
       indices.push_back(indexOf(surfaceMasses, cell->hhl));
       indices.push_back(indexOf(surfaceMasses, cell->lhh));
+
+      // Duplicate edge vertices so they have separate normals for each side for lighting
+      int i = indices.size() - 1;
+      if(x == 1) {
+        if(z == 1) {
+          duplicateVertex(vertices, indices, i-11);
+          duplicateVertex(vertices, indices, i-3);
+        }else {
+          indices[i-11] = indices[i-21];
+          indices[i-3]  = indices[i-17];
+        }
+        duplicateVertex(vertices, indices, i-9);
+        duplicateVertex(vertices, indices, i);
+        indices[i-8] = indices[i-9];
+        indices[i-5] = indices[i];
+      }
+      if(x == cellsPerAxis) {
+        if(z == 1) {
+          duplicateVertex(vertices, indices, i-10);
+          duplicateVertex(vertices, indices, i-1);
+          indices[i-7]  = indices[i-10];
+          indices[i-4]  = indices[i-1];
+        }else {
+          indices[i-10] = indices[i-18];
+          indices[i-7]  = indices[i-18];
+          indices[i-1]  = indices[i-14];
+          indices[i-4]  = indices[i-14];
+        }
+        duplicateVertex(vertices, indices, i-6);
+        duplicateVertex(vertices, indices, i-2);
+      }
     }
   }
 
@@ -114,6 +166,60 @@ std::vector<GLuint> SoftBodyFactory::getCubeVertexIndices(const std::vector<int>
       indices.push_back(indexOf(surfaceMasses, cell->hhh));
       indices.push_back(indexOf(surfaceMasses, cell->lhh));
       indices.push_back(indexOf(surfaceMasses, cell->hlh));
+
+      // Duplicate edge vertices so they have separate normals for each side for lighting
+      int i = indices.size() - 1;
+      if(x == 1) {
+        if(y == 1) {
+          duplicateVertex(vertices, indices, i-11);
+          duplicateVertex(vertices, indices, i-3);
+        }else {
+          indices[i-11] = indices[i-22];
+          indices[i-3]  = indices[i-13];
+        }
+        duplicateVertex(vertices, indices, i-10);
+        duplicateVertex(vertices, indices, i-1);
+        indices[i-7]  = indices[i-10];
+        indices[i-4]  = indices[i-1];
+      }
+      if(x == cellsPerAxis) {
+        if(y == 1) {
+          duplicateVertex(vertices, indices, i-9);
+          duplicateVertex(vertices, indices, i);
+          indices[i-8] = indices[i-9];
+          indices[i-5] = indices[i];
+        }else {
+          indices[i-9] = indices[i-18];
+          indices[i-8] = indices[i-18];
+          indices[i]   = indices[i-14];
+          indices[i-5] = indices[i-14];
+        }
+        duplicateVertex(vertices, indices, i-6);
+        duplicateVertex(vertices, indices, i-2);
+      }
+
+      if(y == 1) {
+        if(x < cellsPerAxis) {
+          duplicateVertex(vertices, indices, i-9);
+          duplicateVertex(vertices, indices, i);
+          indices[i-8] = indices[i-9];
+          indices[i-5] = indices[i];
+        }if(x > 1) {
+          indices[i-11] = indices[i - 12*cellsPerAxis - 8];
+          indices[i-3]  = indices[i - 12*cellsPerAxis];
+        }
+      }
+      if(y == cellsPerAxis) {
+        if(x < cellsPerAxis) {
+          duplicateVertex(vertices, indices, i-6);
+          duplicateVertex(vertices, indices, i-2);
+        }if(x > 1) {
+          indices[i-10] = indices[i - 12*cellsPerAxis - 6];
+          indices[i-7]  = indices[i - 12*cellsPerAxis - 6];
+          indices[i-1]  = indices[i - 12*cellsPerAxis - 2];
+          indices[i-4]  = indices[i - 12*cellsPerAxis - 2];
+        }
+      }
     }
   }
 
@@ -127,20 +233,22 @@ Mesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasses, const
   // Get vertex positions
   const std::vector<Mass*>& masses = cube.getSurfaceMasses();
   int cellsPerAxis = cbrt(numCells);
-  int numV = surfaceMasses.size() * 3;
-  GLfloat vertices[numV];
+  std::vector<GLfloat> vertices;
   for(int i=0; i<surfaceMasses.size(); i++) {
     Vector pos = masses[i]->getPos();
-    vertices[i*3]     = pos[0];
-    vertices[i*3 + 1] = pos[1];
-    vertices[i*3 + 2] = pos[2];
+    vertices.insert(vertices.end(), {pos[0], pos[1], pos[2]});
   }
 
   // Get vertex indices and normals
-  std::vector<GLuint> indices = getCubeVertexIndices(surfaceMasses, cellsPerAxis, cells);
-  std::vector<GLfloat> normals = computeNormals(vertices, indices.data(), numV, indices.size());
+  std::vector<GLuint> indices = getCubeVertexIndices(vertices, surfaceMasses, cellsPerAxis, cells);
+  std::vector<GLfloat> normals = computeNormals(vertices.data(), indices.data(),
+                                                vertices.size(), indices.size());
 
-  return Mesh(vertices, normals.data(), indices.data(), numV, indices.size());
+  // Material properties
+  Material material = {{1, 0, 0, 1}, 0.2};
+
+  return Mesh(vertices.data(), normals.data(), indices.data(),
+              vertices.size(), indices.size(), material);
 }
 
 
@@ -185,14 +293,14 @@ CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, Vector& cellC
  */
 std::pair<SoftBody, Mesh> SoftBodyFactory::buildCube(Vector position, float size,
                                                      unsigned int numCells, float k, float c)
-{ 
+{
   std::vector<Mass> masses;
   std::vector<Spring> springs;
   std::vector<int> surfaceMasses;
 
   // Round number of cells to nearest cube
-  numCells = pow(round(cbrt(numCells)), 3);
-  int cellsPerAxis = cbrt(numCells);
+  numCells = round(pow(round(cbrt(numCells)), 3));
+  float cellsPerAxis = cbrt(numCells);
 
   float cellSize = size / cellsPerAxis;                     // Cell side length
   float halfCellSize = cellSize/2;
@@ -219,25 +327,21 @@ std::pair<SoftBody, Mesh> SoftBodyFactory::buildCube(Vector position, float size
   CubeCell* cell = &cells[1][1][0];
   Vector massPos = firstCellCenter - halfCellSize;
   masses.emplace_back(massPos);
-  // masses.push_back(Mass(massPos));
   cell->llh = masses.size()-1;
   surfaceMasses.push_back(cell->llh);
 
   massPos[1] += cellSize;
   masses.emplace_back(massPos);
-  // masses.push_back(Mass(massPos));
   cell->lhh = masses.size()-1;
   surfaceMasses.push_back(cell->lhh);
 
   massPos += Vector{cellSize, -cellSize, 0};
   masses.emplace_back(massPos);
-  // masses.push_back(Mass(massPos));
   cell->hlh = masses.size()-1;
   surfaceMasses.push_back(cell->hlh);
 
   massPos[1] += cellSize;
   masses.emplace_back(massPos);
-  // masses.push_back(Mass(massPos));
   cell->hhh =  masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
 
@@ -250,12 +354,10 @@ std::pair<SoftBody, Mesh> SoftBodyFactory::buildCube(Vector position, float size
     cell->hlh = priorCell->hhh;
 
     masses.emplace_back(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize});
-    // masses.push_back(Mass(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize}));
     cell->lhh = masses.size()-1;
     surfaceMasses.push_back(cell->lhh);
 
     masses.emplace_back(cellCenter + halfCellSize);
-    // masses.push_back(Mass(cellCenter + halfCellSize));
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -271,12 +373,10 @@ std::pair<SoftBody, Mesh> SoftBodyFactory::buildCube(Vector position, float size
     cell->lhh = priorCellX->hhh;
 
     masses.emplace_back(cellCenter + Vector{halfCellSize, -halfCellSize, halfCellSize});
-    // masses.push_back(Mass(cellCenter + Vector{halfCellSize, -halfCellSize, halfCellSize}));
     cell->hlh = masses.size()-1;
     surfaceMasses.push_back(cell->hlh);
 
     masses.emplace_back(cellCenter + halfCellSize);
-    // masses.push_back(Mass(cellCenter + halfCellSize));
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -305,7 +405,7 @@ std::pair<SoftBody, Mesh> SoftBodyFactory::buildCube(Vector position, float size
   cell->lhl = cells[1][1][0].llh;
   cell->hhl = cells[1][1][0].hlh;
 
-  massPos = firstCellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize};
+  massPos = firstCellCenter + Vector{-halfCellSize, -halfCellSize, halfCellSize};
   masses.emplace_back(massPos);
   cell->lhh = masses.size()-1;
   surfaceMasses.push_back(cell->lhh);

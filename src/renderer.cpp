@@ -3,6 +3,7 @@
 #include <GLFW/glfw3.h>
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <GL/glew.h>
 #include "renderer.h"
 #include "soft_body.h"
@@ -14,7 +15,7 @@ void Renderer::initializeCamController() {
   camController.bindCamera(camera);
   camController.setTimeStep(1/fps);
 
-  // Camera movement keys
+  // Camera movement keys (WASD)
   KeyFn moveRight   = std::bind(&CameraController::moveCamera, &camController, glm::vec3{ 1, 0, 0});
   KeyFn moveLeft    = std::bind(&CameraController::moveCamera, &camController, glm::vec3{-1, 0, 0});
   KeyFn moveUp      = std::bind(&CameraController::moveCamera, &camController, glm::vec3{ 0, 1, 0});
@@ -29,21 +30,29 @@ void Renderer::initializeCamController() {
   keyBindings[GLFW_KEY_SPACE] = std::make_pair(moveUp, moveDown);       // Move camera up    (SPACE)
   keyBindings[GLFW_KEY_LEFT_SHIFT] = std::make_pair(moveDown, moveUp);  // Move camera down  (SHIFT)
 
-  // Camera rotation keys
+  // Camera rotation keys (arrow keys)
   KeyFn rotateRight = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{-1,0,0});
   KeyFn rotateLeft  = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{ 1,0,0});
   KeyFn rotateUp    = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{ 0,1,0});
   KeyFn rotateDown  = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{0,-1,0});
 
-  keyBindings[GLFW_KEY_RIGHT] = std::make_pair(rotateRight, rotateLeft);
-  keyBindings[GLFW_KEY_LEFT] = std::make_pair(rotateLeft, rotateRight);
-  keyBindings[GLFW_KEY_UP] = std::make_pair(rotateUp, rotateDown);
-  keyBindings[GLFW_KEY_DOWN] = std::make_pair(rotateDown, rotateUp);
+  keyBindings[GLFW_KEY_RIGHT] = std::make_pair(rotateRight, rotateLeft);  // Turn camera right
+  keyBindings[GLFW_KEY_LEFT]  = std::make_pair(rotateLeft, rotateRight);  // Turn camera left
+  keyBindings[GLFW_KEY_UP]    = std::make_pair(rotateUp, rotateDown);     // Turn camera up
+  keyBindings[GLFW_KEY_DOWN]  = std::make_pair(rotateDown, rotateUp);     // Turn camera down
 }
+
 
 void Renderer::setProgram(GLuint program) {
   this->shaderProgram = program;
+  glGenBuffers(1, &lightBuffer);
 }
+
+void Renderer::setLight(const Light& light) {
+	glBindBuffer(GL_UNIFORM_BUFFER, lightBuffer);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(light), &light, GL_STATIC_DRAW);
+}
+
 
 /**
  * @brief Binds a mesh to a soft body so the mesh is continually updated to
@@ -52,7 +61,6 @@ void Renderer::setProgram(GLuint program) {
 void Renderer::bindMesh(const Mesh& mesh, const SoftBody* softBody) {
   meshes.insert({softBody, mesh});
 }
-
 
 
 void Renderer::initializeCamera(const glm::vec3& position, const glm::vec3& direction,
@@ -102,7 +110,10 @@ void Renderer::handleKeyInput(int key, int action) {
 void Renderer::display(const Simulation& sim) {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-  // TEMP COMMENT: Set uniform variables that apply to everything (light, camera, etc.)
+  // Set uniform variables
+	glBindBufferBase(GL_UNIFORM_BUFFER, 1, lightBuffer);
+	int camPos = glGetUniformLocation(shaderProgram, "camPos");
+	glUniformMatrix3fv(camPos, 1, 0, glm::value_ptr(camera.getPosition()));
 
   // Display objects
   camController.updateCamera();

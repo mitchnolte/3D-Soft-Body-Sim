@@ -17,6 +17,7 @@ public:
   void setPosition(const glm::vec3& position);
   void setDirection(const glm::vec3& direction);
   void setPerspective(float aspectRatio, float fov=0.0);
+  const glm::vec3& getPosition();
   glm::mat4 getViewPerspective() const; 
 
   friend class CameraController;
@@ -25,8 +26,8 @@ public:
 
 class CameraController {
   Camera* camera;
-  glm::vec3 linearVelocity;
-  glm::vec2 angularVelocity;
+  glm::vec3 moveDirection;
+  glm::vec2 rotateDirection;
   float moveSpeed;
   float rotateSpeed;
   float dt;

@@ -7,7 +7,7 @@ uniform mat4 modelViewPerspective;
 // uniform mat3 normalMat;
 uniform bool softBody;
 out vec4 position;
-// out vec3 normal;
+out vec3 normal;
 
 void main() {
   gl_Position = modelViewPerspective * vPosition;
@@ -16,4 +16,5 @@ void main() {
   // if(softBody) position = vPosition;
   // else         position = model * vPosition;
   position = vPosition;
+  normal = vNormal;
 }

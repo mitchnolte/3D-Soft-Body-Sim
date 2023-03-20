@@ -19,10 +19,9 @@ src/soft_body.o: src/soft_body.h
 src/soft_body_factory.o: src/soft_body_factory.h
 
 src/renderer.h: src/camera.h src/mesh.h src/simulation.h src/soft_body.h
-src/mesh.h: src/soft_body.h
 src/rk4_solver.h: src/vector.h
 src/soft_body.h: src/vector.h src/rk4_solver.h
-src/soft_body_factory.h: src/soft_body.h
+src/soft_body_factory.h: src/soft_body.h src/mesh.h
 
 clean:
 	rm $(TARGET).exe $(OBjECTS)

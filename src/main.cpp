@@ -52,7 +52,7 @@ int main() {
 
   // Create window
   GLFWwindow* window;
-  window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Metaverse", NULL, NULL);
+  window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Soft Body Simulation", NULL, NULL);
   if (!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);
@@ -83,13 +83,14 @@ int main() {
   SoftBodyFactory factory;
   SoftBody cube;
   Mesh cubeMesh;
-  std::tie(cube, cubeMesh) = factory.buildCube();
+  std::tie(cube, cubeMesh) = factory.buildCube(Vector(3), 1, 165);
   sim.addBody(cube);
 
   // Initialize renderer
   float ratio = WIN_WIDTH / WIN_HEIGHT;
   renderer = Renderer(FRAME_RATE);
   renderer.setProgram(program);
+  renderer.setLight({{-500, -500, 1000, 0}, {1.0, 1.0, 1.0, 1.0}});
   renderer.initializeCamera(glm::vec3(0.0, -5.0, 1.8), glm::vec3(0.0, 1.0, 0.0), ratio);
   renderer.bindMesh(cubeMesh, &sim.getBodies()[0]);
 

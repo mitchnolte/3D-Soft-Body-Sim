@@ -3,10 +3,24 @@
 #include <glm/gtc/type_ptr.hpp>
 
 
+
+
+
+
+#include <iostream>
+
+
+
+
+
+
 Mesh::Mesh() {}
 
-Mesh::Mesh(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, int numI) {
+Mesh::Mesh(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, int numI,
+           const Material& material)
+{
   loadVertexData(vertices, normals, indices, numV, numI);
+  setMaterial(material);
 }
 
 void Mesh::loadVertexData(GLfloat vertices[], GLfloat normals[], GLuint indices[],
@@ -32,8 +46,16 @@ void Mesh::loadVertexData(GLfloat vertices[], GLfloat normals[], GLuint indices[
   this->indexBuf = indexBuf;
   this->numTris = numI / 3;
   this->vertexSize = numV * sizeof(GLfloat);
+
+  // Generate material uniform block buffer
+  glGenBuffers(1, &materialBuf);
 }
 
+
+void Mesh::setMaterial(const Material& material) {
+	glBindBuffer(GL_UNIFORM_BUFFER, materialBuf);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(material), &material, GL_STATIC_DRAW);
+}
 
 GLuint Mesh::getVertexBuf() {return vertexBuf;}
 
@@ -59,14 +81,11 @@ void Mesh::display(GLuint shaderProgram, const glm::mat4& viewPerspective) {
   sendVertexData(shaderProgram);
 
   // Set uniform variables
+	glBindBufferBase(GL_UNIFORM_BUFFER, 2, materialBuf);
   int mvpLoc = glGetUniformLocation(shaderProgram, "modelViewPerspective");
   glUniformMatrix4fv(mvpLoc, 1, 0, glm::value_ptr(viewPerspective));
-
-  int softBodyLoc = glGetUniformLocation(shaderProgram, "softBody");
-  glUniform1i(softBodyLoc, 1);
-
-  int colourLoc = glGetUniformLocation(shaderProgram, "colour");
-  glUniform4fv(colourLoc, 1, glm::value_ptr(glm::vec4(1.0, 0.0, 0.0, 1.0)));
+  // int softBodyLoc = glGetUniformLocation(shaderProgram, "softBody");
+  // glUniform1i(softBodyLoc, 1);
 
   // Draw mesh
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuf);

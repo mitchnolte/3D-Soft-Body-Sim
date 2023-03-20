@@ -31,9 +31,7 @@ struct CubeCell {
 };
 
 
-class SoftBodyFactory { 
-  std::vector<GLfloat> computeNormals(GLfloat* vertices, GLuint* indices, int numV, int numI);
-  void triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloat p3[3]);
+class SoftBodyFactory {
   CubeCell buildCubeCell(std::vector<Mass>& masses, Vector& cellCenter, float cellSize,
                          CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ);
   Mesh buildCubeMesh(const std::vector<int>& surfaceMasses, const SoftBody& cube,

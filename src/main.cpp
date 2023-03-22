@@ -21,6 +21,13 @@
 #define STEP_RATE  60     // Simulation updates per second
 
 
+
+
+#include <windows.h>
+
+
+
+
 Renderer renderer;
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
@@ -97,11 +104,23 @@ int main() {
 
   // Main loop
   // while(!glfwWindowShouldClose(window)) {
+  for(int i=0; i<95; i++) {
+    // Sleep(1000);
     sim.update();
     renderer.display();
     glfwSwapBuffers(window);
     glfwPollEvents();
-  // }
+  }
+
+  printf("\n\n****************** IMPLOSION ***********************\n\n\n");
+
+  while(!glfwWindowShouldClose(window)) {
+    Sleep(1000);
+    sim.update();
+    renderer.display();
+    glfwSwapBuffers(window);
+    glfwPollEvents();
+  }
 
   glfwTerminate();
   return 0;

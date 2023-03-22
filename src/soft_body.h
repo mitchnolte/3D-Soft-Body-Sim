@@ -24,7 +24,7 @@ public:
            const std::vector<int>& surfaceMassIndices);
   const std::vector<Mass*>& getSurfaceMasses() const;
   void update(double time);
-  VecList ode(const VecList& states, double time);
+  VecList ode(const VecList& states, double time) const;
 };
 
 
@@ -41,15 +41,15 @@ public:
 
 
 class Spring {
-  int masses[2];    // Indices of connected masses in soft body mass list
-  float k;          // Spring coefficient
-  float c;          // Damping coefficient
+  std::pair<int, int> masses; // Indices of connected masses in soft body mass list
+  float k;                    // Spring coefficient
+  float c;                    // Damping coefficient
   float restLen;
 
 public:
   Spring(int mass1, int mass2, float k, float c, float restLen);
-  int* getMassIndices();
-  Vector calculateForce(const Vector& m1State, const Vector& m2State);
+  const std::pair<int, int>& getMassIndices() const;
+  Vector calculateForce(const Vector& m1State, const Vector& m2State) const;
 };
 
 #endif

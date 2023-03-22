@@ -196,8 +196,10 @@ SoftCubeMesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasse
 }
 
 
-CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, Vector& cellCenter,
-                                  float cellSize, CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ)
+CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, std::vector<Spring>& springs,
+                                        Vector& cellCenter, float cellSize,
+                                        CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ,
+                                        float k, float c)
 {
   CubeCell cell;
 
@@ -220,6 +222,20 @@ CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, Vector& cellC
   // Connect to previous cell in x-axis
   cell.lhh = cellX.hhh;
 
+  // Create Springs
+  float centerDist = vecNorm(Vector(cellSize/2, 3));
+  springs.emplace_back(cell.lll, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.llh, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.lhl, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.lhh, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.hll, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.hlh, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.hhl, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.hhh, cell.center, k, c, centerDist);
+  springs.emplace_back(cell.lhh, cell.hhh, k, c, cellSize);
+  springs.emplace_back(cell.hhl, cell.hhh, k, c, cellSize);
+  springs.emplace_back(cell.hlh, cell.hhh, k, c, cellSize);
+
   return cell;
 }
 
@@ -229,13 +245,13 @@ CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, Vector& cellC
  *        masses with one more mass in the center. The given number of cells is
  *        rounded to the nearest cubic number.
  * @param position Position of the center of the cube.
- * @param size Side length of the cube.
+ * @param sideLengths Side length of the cube.
  * @param numCells Number of cells in the cube.
  * @param k Spring coefficient.
  * @param c Damping coefficient.
  * @return Pair including the cube and a mesh to display it.
  */
-std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, float size,
+std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, float sideLengths,
                                                             unsigned int numCells, float k, float c)
 {
   std::vector<Mass> masses;
@@ -246,11 +262,10 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
   numCells = round(pow(round(cbrt(numCells)), 3));
   float cellsPerAxis = cbrt(numCells);
 
-  float cellSize = size / cellsPerAxis;                     // Cell side length
+  float cellSize = sideLengths / cellsPerAxis;                  // Cell side length
   float halfCellSize = cellSize/2;
-  float vertexDist = vecNorm(Vector(size/2, 3));            // Distance from center to vertices
-  Vector firstCellCenter = position - size/2 + halfCellSize;
-  Vector cellCenter;                                        // Center of current cell
+  Vector firstCellCenter = position - sideLengths/2 + halfCellSize;
+  Vector cellCenter;                                            // Center of current cell
   
   std::vector<std::vector<std::vector<CubeCell>>> cells;
   cells.resize(cellsPerAxis+1);
@@ -289,6 +304,11 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
   cell->hhh =  masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
 
+  springs.emplace_back(cell->llh, cell->lhh, k, c, cellSize);
+  springs.emplace_back(cell->llh, cell->hlh, k, c, cellSize);
+  springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+  springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+
   // First y-axis row
   cellCenter = firstCellCenter + Vector{0, cellSize, -cellSize};
   for(int y=2; y<cellsPerAxis+1; y++) {
@@ -304,6 +324,10 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
     masses.emplace_back(cellCenter + halfCellSize);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
+
+    springs.emplace_back(cell->llh, cell->lhh, k, c, cellSize);
+    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
 
     cellCenter[1] += cellSize;
   }
@@ -324,6 +348,10 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
+    springs.emplace_back(cell->llh, cell->hlh, k, c, cellSize);
+    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+
     cellCenter[1] += cellSize;
     for(int y=2; y<cellsPerAxis+1; y++) {
       priorCellX = &cells[x-1][y][0];
@@ -336,6 +364,9 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
       masses.emplace_back(cellCenter + halfCellSize);
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
+
+      springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+      springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
 
       cellCenter[1] += cellSize;
     }
@@ -359,6 +390,10 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
   cell->hhh = masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
 
+  springs.emplace_back(cell->lhl, cell->lhh, k, c, cellSize);
+  springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+  springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+
   cellCenter = firstCellCenter + Vector{0, -cellSize, cellSize};
   for(int z=2; z<cellsPerAxis+1; z++) {
     CubeCell* priorCell = cell;
@@ -373,6 +408,10 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
     masses.emplace_back(cellCenter + halfCellSize);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
+
+    springs.emplace_back(cell->lhl, cell->lhh, k, c, cellSize);
+    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
 
     cellCenter[2] += cellSize;
   }
@@ -390,6 +429,9 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
+    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+
     cellCenter[2] += cellSize;
     for(int z=2; z<cellsPerAxis+1; z++) {
       priorCellX = &cells[x-1][0][z];
@@ -402,6 +444,9 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
       masses.emplace_back(cellCenter + halfCellSize);
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
+
+      springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
+      springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
 
       cellCenter[2] += cellSize;
     }
@@ -421,6 +466,9 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
   cell->hhh = masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
 
+  springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+  springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+
   cellCenter = firstCellCenter + Vector{-cellSize, 0, cellSize};
   for(int z=2; z<cellsPerAxis+1; z++) {
     CubeCell* priorCell = cell;
@@ -432,6 +480,9 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
     masses.emplace_back(cellCenter + halfCellSize);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
+
+    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
 
     cellCenter[2] += cellSize;
   }
@@ -449,6 +500,9 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
+    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+
     cellCenter[2] += cellSize;
     for(int z=2; z<cellsPerAxis+1; z++) {
       priorCellY = &cells[0][y-1][z];
@@ -461,6 +515,9 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
       masses.emplace_back(cellCenter + halfCellSize);
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
+
+      springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+      springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
 
       cellCenter[2] += cellSize;
     }
@@ -476,8 +533,8 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
   for(int x=1; x<=cellsPerAxis; x++) {
     for(int y=1; y<=cellsPerAxis; y++) {
       for(int z=1; z<=cellsPerAxis; z++) {
-        cells[x][y][z] = buildCubeCell(masses, cellCenter, cellSize, cells[x-1][y][z],
-                                       cells[x][y-1][z], cells[x][y][z-1]);
+        cells[x][y][z] = buildCubeCell(masses, springs, cellCenter, cellSize, cells[x-1][y][z],
+                                       cells[x][y-1][z], cells[x][y][z-1], k, c);
         if(x == cellsPerAxis || y == cellsPerAxis || z == cellsPerAxis)
           surfaceMasses.push_back(cells[x][y][z].hhh);
         cellCenter[2] += cellSize;        // Increment cell z position 

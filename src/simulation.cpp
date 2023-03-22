@@ -15,13 +15,13 @@ const std::vector<SoftBody>& Simulation::getBodies() const {
 }
 
 void Simulation::update() {
-  float t_end = time + dt;
+  float tEnd = time + dt;
   for(SoftBody& body : bodies) {
-    body.update(t_end);
+    body.update(tEnd);
   }
 
   // TODO: Check for collisions
 
 
-  time = t_end;
+  time = tEnd;
 }

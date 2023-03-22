@@ -38,8 +38,9 @@ struct CubeCell {
 typedef std::pair<std::vector<GLuint>, std::vector<GLuint>> CubeTriangleData;
 
 class SoftBodyFactory {
-  CubeCell buildCubeCell(std::vector<Mass>& masses, Vector& cellCenter, float cellSize,
-                         CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ);
+  CubeCell buildCubeCell(std::vector<Mass>& masses, std::vector<Spring>& springs,
+                         Vector& cellCenter, float cellSize,
+                         CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ, float k, float c);
   SoftCubeMesh buildCubeMesh(const std::vector<int>& surfaceMasses, const SoftBody& cube,
                              std::vector<std::vector<std::vector<CubeCell>>>& cells, int numCells);
   CubeTriangleData defineCubeTriangles(std::vector<GLfloat>& vertices,

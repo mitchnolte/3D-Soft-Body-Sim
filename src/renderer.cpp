@@ -11,6 +11,13 @@
 
 Renderer::Renderer(float fps) : fps(fps) {}
 
+Renderer::~Renderer() {
+  for(int i=0; i<meshes.size(); i++) {
+    delete meshes[i];
+  }
+}
+
+
 void Renderer::initializeCamController() {
   camController.bindCamera(camera);
   camController.setTimeStep(1/fps);
@@ -53,13 +60,12 @@ void Renderer::setLight(const Light& light) {
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(light), &light, GL_STATIC_DRAW);
 }
 
+void Renderer::addMesh(const Mesh& mesh) {
+  meshes.push_back(new Mesh(mesh));
+}
 
-/**
- * @brief Binds a mesh to a soft body so the mesh is continually updated to
- *        match the state of the body.
- */
-void Renderer::bindMesh(const Mesh& mesh, const SoftBody* softBody) {
-  meshes.insert({softBody, mesh});
+void Renderer::addMesh(const SoftCubeMesh& mesh) {
+  meshes.push_back(new SoftCubeMesh(mesh));
 }
 
 
@@ -68,25 +74,6 @@ void Renderer::initializeCamera(const glm::vec3& position, const glm::vec3& dire
 {
   camera = Camera(position, direction, aspectRatio, fov);
   initializeCamController();
-}
-
-
-/**
- * @brief Update a mesh's vertices from the corresponding object's surface mass
- *        positions.
- */
-void Renderer::updateMesh(const SoftBody& body) {
-  const std::vector<Mass*>& masses = body.getSurfaceMasses();
-  float vertices[masses.size() * 3];
-  for(int i=0; i<masses.size(); i++) {
-    Vector pos = masses[i]->getPos();
-    vertices[i*3]     = pos[0];
-    vertices[i*3 + 1] = pos[1];
-    vertices[i*3 + 2] = pos[2];
-  }
-
-  glBindBuffer(GL_ARRAY_BUFFER, meshes[&body].getVertexBuf());
-  glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), &vertices);
 }
 
 
@@ -107,7 +94,7 @@ void Renderer::handleKeyInput(int key, int action) {
 /**
  * @brief Render the simulation.
  */
-void Renderer::display(const Simulation& sim) {
+void Renderer::display() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   // Set uniform variables
@@ -118,9 +105,7 @@ void Renderer::display(const Simulation& sim) {
   // Display objects
   camController.updateCamera();
   glm::mat4 viewPerspective = camera.getViewPerspective();
-  const std::vector<SoftBody>& bodies = sim.getBodies();
-  for(const SoftBody& body : bodies) {
-    // updateMesh(body);
-    meshes[&body].display(shaderProgram, viewPerspective);
+  for(Mesh* mesh : meshes) {
+    mesh->display(shaderProgram, viewPerspective);
   }
 }

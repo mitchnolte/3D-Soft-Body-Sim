@@ -5,19 +5,43 @@
  *  SOFT BODY
  ******************************************************************************/
 
-SoftBody::SoftBody() {}
+SoftBody::SoftBody() {
+  using namespace std::placeholders;
+  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2));
+}
+
+SoftBody::SoftBody(const SoftBody& softBody) {
+  masses = softBody.masses;
+  springs = softBody.springs;
+  surfaceMassIndices = softBody.surfaceMassIndices;
+  mass = softBody.mass;
+  solver = softBody.solver;
+
+  surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
+  for(int i=0; i<surfaceMasses.size(); i++) {
+    surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
+  }
+}
 
 SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
                    const std::vector<int>& surfaceMassIndices)
 {
   this->masses = masses;
   this->springs = springs;
+  this->surfaceMassIndices = surfaceMassIndices;
   this->surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
   for(int i=0; i<surfaceMasses.size(); i++) {
     surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
   }
 
-  solver.setODEfunction(std::bind(&SoftBody::ode, this, VecList(), 0.0));
+  VecList state(masses.size());
+  for(int i=0; i<masses.size(); i++) {
+    state[i] = masses[i].getState();
+  }
+
+  using namespace std::placeholders;
+  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2));
+  solver.setState(state);
 }
 
 const std::vector<Mass*>& SoftBody::getSurfaceMasses() const {
@@ -30,16 +54,19 @@ void SoftBody::update(double time) {
 
   // TODO: check for internal collisions
 
+  for(int i=0; i<masses.size(); i++) {
+    masses[i].update(states[i]);
+  }
 }
 
 
 VecList SoftBody::ode(const VecList& states, double time) {
   VecList rates = VecList(states.size(), Vector(states[0].size()));
   for(Spring spring : springs) {
-    int* masses = spring.getMassIndices();
-    Vector force = spring.calculateForce(states[masses[0]], states[masses[1]]);
-    rates[masses[0]] += force;
-    rates[masses[1]] -= force;
+    int* springMasses = spring.getMassIndices();
+    Vector force = spring.calculateForce(states[springMasses[0]], states[springMasses[1]]);
+    rates[springMasses[0]] += force;
+    rates[springMasses[1]] -= force;
   }
 
   return rates;
@@ -54,6 +81,10 @@ Mass::Mass(Vector pos, Vector vel) {
   this->state = Vector(6);
   this->state[std::slice(0, 3, 1)] = pos;
   this->state[std::slice(3, 3, 1)] = vel;
+}
+
+const Vector& Mass::getState() const {
+  return state;
 }
 
 Vector Mass::getPos() const {

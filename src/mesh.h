@@ -5,6 +5,7 @@
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include "vector.h"
+#include "soft_body.h"
 
 
 /**
@@ -28,7 +29,8 @@ protected:
   void sendVertexData(GLuint program);
 
 public:
-  static std::vector<GLfloat> computeNormals(GLfloat* vertices, GLuint* indices, int numV, int numI);
+  static void computeNormals(GLfloat* normals, GLfloat* vertices, GLuint* indices,
+                             int numV, int numI);
   static void triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloat p3[3]);
 
   Mesh();
@@ -36,20 +38,22 @@ public:
        const Material& material);
   void setMaterial(const Material& material);
   void loadVertexData(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, int numI);
-  void updateVertexData(GLfloat vertices[]);
-  GLuint getVertexBuf();
-  GLuint getIndexBuf();
   virtual void display(GLuint program, const glm::mat4& viewPerspective);
 };
 
 
-class TransformableMesh : public Mesh {
-  glm::mat4 transformation;
+class SoftCubeMesh : public Mesh {
+  const SoftBody* cube;
+  std::vector<GLuint> indices;
+  std::vector<GLuint> duplicateVertexIndices;
 
 public:
-  TransformableMesh();
-  void translate(const glm::vec3& translation_vec);
-  void rotate(float angle, const glm::vec3& axis);
+  SoftCubeMesh();
+  SoftCubeMesh(GLfloat vertices[], GLfloat normals[], GLuint indices[],
+               std::vector<GLuint> duplicateVertexIndices,
+               int numV, int numI, const Material& material);
+  void bindCube(const SoftBody* cube);
+  void update();
   void display(GLuint program, const glm::mat4& viewPerspective);
 };
 

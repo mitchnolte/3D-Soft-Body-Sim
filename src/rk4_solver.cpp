@@ -51,7 +51,10 @@ const Vector& RK4solver::integrate(double time, int steps) {
  *  MULTI-STATE SOLVER
  ******************************************************************************/
 
-MultiStateRK4solver::MultiStateRK4solver() {}
+MultiStateRK4solver::MultiStateRK4solver() {
+  time = 0;
+  state = VecList();
+}
 
 MultiStateRK4solver::MultiStateRK4solver(MultiStateODEfn f, VecList state, double time) {
   this->f = f;
@@ -79,7 +82,7 @@ const VecList& MultiStateRK4solver::integrate(double time, int steps) {
   double t = this->time;
   float stepSize = (time - t) / steps;
   VecList k1, k2, k3, k4;
-  
+
   for(int i=0; i<steps; i++) {
     k1 = stepSize * f(state, t);
 

@@ -31,5 +31,6 @@ void main() {
   }
 
   gl_FragColor = min(0.3*colour + diffuse*colour*lightColour + reflectivity*lightColour*specular, vec4(1.0));
+  // gl_FragColor = min(0.3*colour + diffuse*colour*lightColour, vec4(1.0));
   gl_FragColor.a = colour.a;
 }

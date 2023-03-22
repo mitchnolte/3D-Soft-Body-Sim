@@ -10,15 +10,16 @@ class Spring;
 
 
 class SoftBody {
-protected:
   std::vector<Mass> masses;
   std::vector<Spring> springs;
   std::vector<Mass*> surfaceMasses;
+  std::vector<int> surfaceMassIndices;
   float mass;
   MultiStateRK4solver solver;
 
 public:
   SoftBody();
+  SoftBody(const SoftBody& softBody);
   SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
            const std::vector<int>& surfaceMassIndices);
   const std::vector<Mass*>& getSurfaceMasses() const;
@@ -31,7 +32,8 @@ class Mass {
   Vector state;    // Current state of mass; updated at end of time step
 
 public:
-  explicit Mass(Vector pos=Vector(3), Vector vel=Vector(3));
+  Mass(Vector pos=Vector(3), Vector vel=Vector(3));
+  const Vector& getState() const;
   Vector getPos() const;
   Vector getVel() const;
   void update(const Vector& state);
@@ -39,7 +41,7 @@ public:
 
 
 class Spring {
-  int masses[2];
+  int masses[2];    // Indices of connected masses in soft body mass list
   float k;          // Spring coefficient
   float c;          // Damping coefficient
   float restLen;

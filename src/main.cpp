@@ -79,12 +79,13 @@ int main() {
   glUseProgram(program);
 
   // Initialize simulation
-  Simulation sim(1/STEP_RATE);
+  Simulation sim(1.0/STEP_RATE);
   SoftBodyFactory factory;
   SoftBody cube;
-  Mesh cubeMesh;
-  std::tie(cube, cubeMesh) = factory.buildCube(Vector(3), 1, 165);
+  SoftCubeMesh cubeMesh;
+  std::tie(cube, cubeMesh) = factory.buildCube();
   sim.addBody(cube);
+  cubeMesh.bindCube(&sim.getBodies()[0]);
 
   // Initialize renderer
   float ratio = WIN_WIDTH / WIN_HEIGHT;
@@ -92,15 +93,15 @@ int main() {
   renderer.setProgram(program);
   renderer.setLight({{-500, -500, 1000, 0}, {1.0, 1.0, 1.0, 1.0}});
   renderer.initializeCamera(glm::vec3(0.0, -5.0, 1.8), glm::vec3(0.0, 1.0, 0.0), ratio);
-  renderer.bindMesh(cubeMesh, &sim.getBodies()[0]);
+  renderer.addMesh(cubeMesh);
 
   // Main loop
-  while(!glfwWindowShouldClose(window)) {
-    // sim.update();
-    renderer.display(sim);
+  // while(!glfwWindowShouldClose(window)) {
+    sim.update();
+    renderer.display();
     glfwSwapBuffers(window);
     glfwPollEvents();
-  }
+  // }
 
   glfwTerminate();
   return 0;

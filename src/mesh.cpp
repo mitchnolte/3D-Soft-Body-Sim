@@ -30,15 +30,15 @@ void Mesh::triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloa
 
 /**
  * @brief Computes the normal vectors for a mesh.
+ * @param normals Destination array.
  * @param vertices List of vertex coordinates.
  * @param indices List of Vertex indices.
  * @param numV Number of vertices.
  * @param numI Number of indices.
- * @return List of normals.
  */
-std::vector<GLfloat> Mesh::computeNormals(GLfloat* vertices, GLuint* indices, int numV, int numI) {
-  std::vector<GLfloat> normals(numV);
+void Mesh::computeNormals(GLfloat* normals, GLfloat* vertices, GLuint* indices, int numV, int numI) {
   int triangleCount[numV/3] = {0};
+  // printf("%d\n", numI*3);
   for(int i=0; i<numI; i+=3) {
     int v1Index = 3*indices[i];
     int v2Index = 3*indices[i+1];
@@ -61,20 +61,21 @@ std::vector<GLfloat> Mesh::computeNormals(GLfloat* vertices, GLuint* indices, in
     triangleCount[indices[i+1]]++;
     triangleCount[indices[i+2]]++;
   }
+
+  // printf("Whaaaat???\n");
+  
   
   // Average and normalize normals
-  for(int i=0; i<numV; i+=3) {
-    normals[i]   /= triangleCount[indices[i/3]];
-    normals[i+1] /= triangleCount[indices[i/3 + 1]];
-    normals[i+2] /= triangleCount[indices[i/3 + 2]];
-
-    GLfloat len = vecNorm(Vector{normals[i], normals[i+1], normals[i+2]});
-    normals[i]   /= len;
-    normals[i+1] /= len;
-    normals[i+2] /= len;
-  }
-
-  return normals;
+//   for(int i=0; i<numV; i+=3) {
+//     normals[i]   /= triangleCount[indices[i/3]];
+//     normals[i+1] /= triangleCount[indices[i/3 + 1]];
+//     normals[i+2] /= triangleCount[indices[i/3 + 2]];
+// 
+//     GLfloat len = vecNorm(Vector{normals[i], normals[i+1], normals[i+2]});
+//     normals[i]   /= len;
+//     normals[i+1] /= len;
+//     normals[i+2] /= len;
+//   }
 }
 
 
@@ -112,10 +113,6 @@ void Mesh::setMaterial(const Material& material) {
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(material), &material, GL_STATIC_DRAW);
 }
 
-GLuint Mesh::getVertexBuf() {return vertexBuf;}
-
-GLuint Mesh::getIndexBuf() {return indexBuf;}
-
 
 /**
  * @brief Sends the mesh's vertex data to OpenGL for displaying.
@@ -139,8 +136,6 @@ void Mesh::display(GLuint shaderProgram, const glm::mat4& viewPerspective) {
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, materialBuf);
   int mvpLoc = glGetUniformLocation(shaderProgram, "modelViewPerspective");
   glUniformMatrix4fv(mvpLoc, 1, 0, glm::value_ptr(viewPerspective));
-  // int softBodyLoc = glGetUniformLocation(shaderProgram, "softBody");
-  // glUniform1i(softBodyLoc, 1);
 
   // Draw mesh
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuf);
@@ -149,35 +144,62 @@ void Mesh::display(GLuint shaderProgram, const glm::mat4& viewPerspective) {
 
 
 /*******************************************************************************
- *  TRANSFORMABLE MESH
+ *  SOFT CUBE MESH
  ******************************************************************************/
 
-TransformableMesh::TransformableMesh() {
-  transformation = glm::mat4(1.0);
+SoftCubeMesh::SoftCubeMesh() {}
+
+SoftCubeMesh::SoftCubeMesh(GLfloat vertices[], GLfloat normals[], GLuint indices[],
+                           std::vector<GLuint> duplicateVertexIndices,
+                           int numV, int numI, const Material& material)
+  : Mesh(vertices, normals, indices, numV, numI, material)
+{
+  this->indices.assign(indices, indices + numI);
+  this->duplicateVertexIndices = duplicateVertexIndices;
 }
 
-void TransformableMesh::translate(const glm::vec3& translation_vec) {
-  transformation = glm::translate(transformation, translation_vec);
+void SoftCubeMesh::bindCube(const SoftBody* cube) {
+  this->cube = cube;
 }
 
-void TransformableMesh::rotate(float angle, const glm::vec3& axis) {
-  transformation = glm::rotate(transformation, angle, axis);
+
+void SoftCubeMesh::update() {
+
+  // Update vertex positions
+  const std::vector<Mass*>& masses = cube->getSurfaceMasses();
+  int numMasses = masses.size();
+  int numV = 3 * (numMasses + duplicateVertexIndices.size());
+  GLfloat vertices[numV];
+  for(int i=0; i<numMasses; i++) {
+    Vector pos = masses[i]->getPos();
+    vertices[i*3]     = pos[0];
+    vertices[i*3 + 1] = pos[1];
+    vertices[i*3 + 2] = pos[2];
+  }
+  for(int i=0; i<duplicateVertexIndices.size(); i++) {
+    Vector pos = masses[duplicateVertexIndices[i]]->getPos();
+    int vIndex = 3*(i + numMasses);
+    vertices[vIndex]   = pos[0];
+    vertices[vIndex+1] = pos[1];
+    vertices[vIndex+2] = pos[2];
+  }
+
+  // printf("testing\n");
+  // printf("%d, %d\n", numV, std::max_element(indices.begin(), indices.end()));
+
+  // Update vertex normals
+  GLfloat normals[numV] = {0};
+  computeNormals(normals, vertices, indices.data(), numV, indices.size());
+
+  // printf("testington\n");
+
+  glBindBuffer(GL_ARRAY_BUFFER, vertexBuf);
+  glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices);
+  glBufferSubData(GL_ARRAY_BUFFER, vertexSize, vertexSize, normals);
 }
 
-void TransformableMesh::display(GLuint shaderProgram, const glm::mat4& viewPerspective) {
-  sendVertexData(shaderProgram);
 
-  // Set uniform variables
-  int modelLoc = glGetUniformLocation(shaderProgram, "model");
-  glUniformMatrix4fv(modelLoc, 1, 0, glm::value_ptr(transformation));
-  glm::mat4 modelViewPerspective = viewPerspective * transformation;
-  int mvpLoc = glGetUniformLocation(shaderProgram, "modelViewPerspective");
-  glUniformMatrix4fv(mvpLoc, 1, 0, glm::value_ptr(modelViewPerspective));
-  glm::mat3 normalMat = glm::transpose(glm::inverse(glm::mat3(transformation)));
-  int normalMatLoc = glGetUniformLocation(shaderProgram, "normalMat");
-  glUniformMatrix3fv(normalMatLoc, 1, 0, glm::value_ptr(normalMat));
-
-  // Draw mesh
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuf);
-  glDrawElements(GL_TRIANGLES, 3*numTris, GL_UNSIGNED_INT, NULL);
+void SoftCubeMesh::display(GLuint program, const glm::mat4& viewPerspective) {
+  update();
+  Mesh::display(program, viewPerspective);
 }

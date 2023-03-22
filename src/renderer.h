@@ -24,7 +24,7 @@ struct Light {
 class Renderer {
   GLuint shaderProgram;
   GLuint lightBuffer;
-  std::unordered_map<const SoftBody*, Mesh> meshes;
+  std::vector<Mesh*> meshes;
   Camera camera;
   CameraController camController;
   KeyBindings keyBindings;
@@ -34,14 +34,15 @@ class Renderer {
 
 public:
   Renderer(float fps=60);
+  ~Renderer();
   void setProgram(GLuint program);
   void setLight(const Light& light);
   void initializeCamera(const glm::vec3& position, const glm::vec3& direction, float aspectRatio=1,
                         float fov=1.57);
-  void bindMesh(const Mesh& mesh, const SoftBody* softBody);
-  void updateMesh(const SoftBody& body);
+  void addMesh(const Mesh& mesh);
+  void addMesh(const SoftCubeMesh& mesh);
   void handleKeyInput(int key, int action);
-  void display(const Simulation& sim);
+  void display();
 };
 
 #endif

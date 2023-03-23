@@ -11,7 +11,6 @@ void duplicateVertex(std::vector<GLfloat>& vertices, std::vector<GLuint>& indice
   vertices.push_back(vertices[3*indices[i]]);
   vertices.push_back(vertices[3*indices[i] + 1]);
   vertices.push_back(vertices[3*indices[i] + 2]);
-  // dupeVIndices.push_back(indexOf(surfaceMasses, indices[i]));
   dupeVIndices.push_back(indices[i]);
   indices[i] = vertices.size()/3 - 1;
 }
@@ -161,8 +160,8 @@ CubeTriangleData SoftBodyFactory::defineCubeTriangles(std::vector<GLfloat>& vert
     }
   }
 
-  // indices.shrink_to_fit();
-  // duplicateVertexIndices.shrink_to_fit();
+  indices.shrink_to_fit();
+  duplicateVertexIndices.shrink_to_fit();
   return std::make_pair(indices, duplicateVertexIndices);
 }
 
@@ -538,6 +537,16 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
                                        cells[x][y-1][z], cells[x][y][z-1], k, c);
         if(x == cellsPerAxis || y == cellsPerAxis || z == cellsPerAxis)
           surfaceMasses.push_back(cells[x][y][z].hhh);
+
+        // Connect center masses of adjacent cells
+        // if(x != 1) {
+        //   springs.emplace_back(cells[x-1][y][z].center, cells[x][y][z].center, k, c, cellSize);
+        // }if(y != 1) {
+        //   springs.emplace_back(cells[x][y-1][z].center, cells[x][y][z].center, k, c, cellSize);
+        // }if(z != 1) {
+        //   springs.emplace_back(cells[x][y][z-1].center, cells[x][y][z].center, k, c, cellSize);
+        // }
+
         cellCenter[2] += cellSize;        // Increment cell z position 
       }
       cellCenter[1] += cellSize;          // Increment cell y position

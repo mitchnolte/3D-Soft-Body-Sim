@@ -18,15 +18,6 @@ class SoftBody {
   double massRadii;
   MultiStateRK4solver solver;
 
-
-
-
-  int framesTillDestruction=0;
-
-
-
-
-
 public:
   SoftBody(double mass=1, double massRadii=1);
   SoftBody(const SoftBody& softBody);

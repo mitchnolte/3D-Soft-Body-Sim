@@ -59,23 +59,8 @@ const std::vector<Mass*>& SoftBody::getSurfaceMasses() const {
 
 
 void SoftBody::update(double time) {
-  VecList states = solver.integrate(time, 10);
-  
-  // int i=10;
-  // for(int i=0; i<states.size(); i++) {
-    // printf("%f, %f, %f, %f, %f, %f\n", states[i][0], states[i][1], states[i][2], states[i][3], states[i][4], states[i][5]);
-  // }
-  // printf("\n");
+  VecList states = solver.integrate(time);
 
-  if(fabs(states[0][0]) < 10000000) {
-    framesTillDestruction++;
-  } else if(framesTillDestruction > 0) {
-    printf("Frames till destruction: %d\n", framesTillDestruction);
-    framesTillDestruction = -1;
-  }
-    
-  
-  
   for(int i=0; i<masses.size(); i++) {
     masses[i].update(states[i]);
   }
@@ -94,8 +79,10 @@ void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
     const std::pair<int, int>& springMasses = spring.getMassIndices();
     Vector force = spring.calculateForce(states[springMasses.first], states[springMasses.second],
                                          massRadii);
-    rates[springMasses.first][std::slice(3, 3, 1)]  += force;
-    rates[springMasses.second][std::slice(3, 3, 1)] -= force;
+
+    // Additional friction to stabilize structure
+    rates[springMasses.first][std::slice(3, 3, 1)]  += force - 0.008*states[springMasses.first][std::slice(3, 3, 1)];
+    rates[springMasses.second][std::slice(3, 3, 1)] -= force + 0.008*states[springMasses.second][std::slice(3, 3, 1)];
   }
 }
 
@@ -156,11 +143,11 @@ Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State, doub
   Vector velocity  = Vector(m1State[std::slice(3, 3, 1)]) - Vector(m2State[std::slice(3, 3, 1)]);
   Vector direction = Vector(m1State[std::slice(0, 3, 1)]) - Vector(m2State[std::slice(0, 3, 1)]);
 
-  double length      = vecNorm(direction);              // Spring length
-  Vector u           = direction / length;              // Unit length direction
-  double deformation = length - restLen;                // Spring deformation
-  // if(fabs(deformation) < 0.0000000001)                  // Account for precision error
-  //   return Vector(3);
+  double length      = vecNorm(direction);      // Spring length
+  Vector u           = direction / length;      // Unit length direction
+  double deformation = length - restLen;        // Spring deformation
+  if(fabs(deformation) < 0.0000000001)          // Account for precision error
+    return Vector(3);
 
   // Vector collisionForce(3);
   // if(length <= 2*massRadii)

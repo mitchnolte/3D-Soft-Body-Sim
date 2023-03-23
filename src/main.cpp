@@ -99,13 +99,13 @@ int main() {
   renderer = Renderer(FRAME_RATE);
   renderer.setProgram(program);
   renderer.setLight({{-500, -500, 1000, 0}, {1.0, 1.0, 1.0, 1.0}});
-  renderer.initializeCamera(glm::vec3(0.0, -5.0, 1.8), glm::vec3(0.0, 1.0, 0.0), ratio);
+  renderer.initializeCamera(glm::vec3(0.0, -2.0, 1.0), glm::vec3(0.0, 1.0, -0.2), ratio);
   renderer.addMesh(cubeMesh);
 
 
 
 
-  printf("3 CPA, 10 UPS, k = 0.1, c = 0.008\n");
+  printf("3 CPA, 4 IPT, k = 0.1, c = 0.008\n");
   
   
   

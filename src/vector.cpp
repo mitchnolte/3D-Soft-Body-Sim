@@ -1,8 +1,8 @@
 #include "vector.h"
 
-float vecDot(const Vector& u, const Vector& v) {return (u * v).sum();}
-float vecNorm(const Vector& v)                 {return sqrt(vecDot(v, v));}
-Vector normalize(const Vector& v)              {return v / vecNorm(v);}
+double vecDot(const Vector& u, const Vector& v) {return (u * v).sum();}
+double vecNorm(const Vector& v)                 {return sqrt(vecDot(v, v));}
+Vector normalize(const Vector& v)               {return v / vecNorm(v);}
 
 VecList operator+(VecList l1, VecList l2) {
   int size = l1.size();
@@ -12,7 +12,7 @@ VecList operator+(VecList l1, VecList l2) {
   return sum;
 }
 
-VecList operator+(float scalar, VecList list) {
+VecList operator+(double scalar, VecList list) {
   int size = list.size();
   VecList sum(size);
   for(int i=0; i<size; i++) {
@@ -21,7 +21,7 @@ VecList operator+(float scalar, VecList list) {
   return sum;
 }
 
-VecList operator+(VecList list, float scalar) {
+VecList operator+(VecList list, double scalar) {
   return scalar + list;
 }
 
@@ -33,7 +33,7 @@ VecList operator*(VecList l1, VecList l2) {
   return product;
 }
 
-VecList operator*(float scalar, VecList list) {
+VecList operator*(double scalar, VecList list) {
   int size = list.size();
   VecList product(size);
   for(int i=0; i<size; i++)
@@ -41,6 +41,6 @@ VecList operator*(float scalar, VecList list) {
   return product;
 }
 
-VecList operator*(VecList list, float scalar) {
+VecList operator*(VecList list, double scalar) {
   return scalar * list;
 }

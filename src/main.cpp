@@ -90,7 +90,7 @@ int main() {
   SoftBodyFactory factory;
   SoftBody cube;
   SoftCubeMesh cubeMesh;
-  std::tie(cube, cubeMesh) = factory.buildCube();
+  std::tie(cube, cubeMesh) = factory.buildCube(Vector(3), 1, 27, 0.1, 0.008);
   sim.addBody(cube);
   cubeMesh.bindCube(&sim.getBodies()[0]);
 
@@ -102,20 +102,18 @@ int main() {
   renderer.initializeCamera(glm::vec3(0.0, -5.0, 1.8), glm::vec3(0.0, 1.0, 0.0), ratio);
   renderer.addMesh(cubeMesh);
 
+
+
+
+  printf("3 CPA, 10 UPS, k = 0.1, c = 0.008\n");
+  
+  
+  
+
   // Main loop
-  // while(!glfwWindowShouldClose(window)) {
-  for(int i=0; i<95; i++) {
-    // Sleep(1000);
-    sim.update();
-    renderer.display();
-    glfwSwapBuffers(window);
-    glfwPollEvents();
-  }
-
-  printf("\n\n****************** IMPLOSION ***********************\n\n\n");
-
   while(!glfwWindowShouldClose(window)) {
-    Sleep(1000);
+    // Sleep(17);
+    // Sleep(500);
     sim.update();
     renderer.display();
     glfwSwapBuffers(window);

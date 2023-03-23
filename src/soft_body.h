@@ -14,17 +14,27 @@ class SoftBody {
   std::vector<Spring> springs;
   std::vector<Mass*> surfaceMasses;
   std::vector<int> surfaceMassIndices;
-  float mass;
+  double mass;
+  double massRadii;
   MultiStateRK4solver solver;
 
+
+
+
+  int framesTillDestruction=0;
+
+
+
+
+
 public:
-  SoftBody();
+  SoftBody(double mass=1, double massRadii=1);
   SoftBody(const SoftBody& softBody);
   SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-           const std::vector<int>& surfaceMassIndices);
+           const std::vector<int>& surfaceMassIndices, double mass=1, double massRadii=1);
   const std::vector<Mass*>& getSurfaceMasses() const;
   void update(double time);
-  VecList ode(const VecList& states, double time) const;
+  void ode(VecList& rates, const VecList& states, double time) const;
 };
 
 
@@ -42,14 +52,14 @@ public:
 
 class Spring {
   std::pair<int, int> masses; // Indices of connected masses in soft body mass list
-  float k;                    // Spring coefficient
-  float c;                    // Damping coefficient
-  float restLen;
+  double k;                    // Spring coefficient
+  double c;                    // Damping coefficient
+  double restLen;
 
 public:
-  Spring(int mass1, int mass2, float k, float c, float restLen);
+  Spring(int mass1, int mass2, double k, double c, double restLen);
   const std::pair<int, int>& getMassIndices() const;
-  Vector calculateForce(const Vector& m1State, const Vector& m2State) const;
+  Vector calculateForce(const Vector& m1State, const Vector& m2State, double massRadii) const;
 };
 
 #endif

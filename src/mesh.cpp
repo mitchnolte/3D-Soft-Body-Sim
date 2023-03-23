@@ -172,26 +172,21 @@ void SoftCubeMesh::update() {
   GLfloat vertices[numV];
   for(int i=0; i<numMasses; i++) {
     Vector pos = masses[i]->getPos();
-    vertices[i*3]     = pos[0];
-    vertices[i*3 + 1] = pos[1];
-    vertices[i*3 + 2] = pos[2];
+    vertices[i*3]     = (float)pos[0];
+    vertices[i*3 + 1] = (float)pos[1];
+    vertices[i*3 + 2] = (float)pos[2];
   }
   for(int i=0; i<duplicateVertexIndices.size(); i++) {
     Vector pos = masses[duplicateVertexIndices[i]]->getPos();
     int vIndex = 3*(i + numMasses);
-    vertices[vIndex]   = pos[0];
-    vertices[vIndex+1] = pos[1];
-    vertices[vIndex+2] = pos[2];
+    vertices[vIndex]   = (float)pos[0];
+    vertices[vIndex+1] = (float)pos[1];
+    vertices[vIndex+2] = (float)pos[2];
   }
-
-  // printf("testing\n");
-  // printf("%d, %d\n", numV, std::max_element(indices.begin(), indices.end()));
 
   // Update vertex normals
   GLfloat normals[numV] = {0};
   computeNormals(normals, vertices, indices.data(), numV, indices.size());
-
-  // printf("testington\n");
 
   glBindBuffer(GL_ARRAY_BUFFER, vertexBuf);
   glBufferSubData(GL_ARRAY_BUFFER, 0, vertexSize, vertices);

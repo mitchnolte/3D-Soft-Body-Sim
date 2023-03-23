@@ -1,7 +1,7 @@
 #include "simulation.h"
 
 
-Simulation::Simulation(float dt) {
+Simulation::Simulation(double dt) {
   this->time = 0;
   this->dt = dt;
 }
@@ -15,7 +15,7 @@ const std::vector<SoftBody>& Simulation::getBodies() const {
 }
 
 void Simulation::update() {
-  float tEnd = time + dt;
+  double tEnd = time + dt;
   for(SoftBody& body : bodies) {
     body.update(tEnd);
   }

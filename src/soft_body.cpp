@@ -5,9 +5,12 @@
  *  SOFT BODY
  ******************************************************************************/
 
-SoftBody::SoftBody() {
+SoftBody::SoftBody(double mass, double massRadii) {
+  this->mass = mass;
+  this->massRadii = massRadii;
+
   using namespace std::placeholders;
-  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2));
+  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
 }
 
 SoftBody::SoftBody(const SoftBody& softBody) {
@@ -15,6 +18,7 @@ SoftBody::SoftBody(const SoftBody& softBody) {
   springs = softBody.springs;
   surfaceMassIndices = softBody.surfaceMassIndices;
   mass = softBody.mass;
+  massRadii = softBody.massRadii;
 
   surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
   for(int i=0; i<surfaceMasses.size(); i++) {
@@ -23,15 +27,17 @@ SoftBody::SoftBody(const SoftBody& softBody) {
   
   using namespace std::placeholders;
   solver = softBody.solver;
-  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2));
+  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
 }
 
 SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-                   const std::vector<int>& surfaceMassIndices)
+                   const std::vector<int>& surfaceMassIndices, double mass, double massRadii)
 {
   this->masses = masses;
   this->springs = springs;
   this->surfaceMassIndices = surfaceMassIndices;
+  this->mass = mass;
+  this->massRadii = massRadii;
   this->surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
   for(int i=0; i<surfaceMasses.size(); i++) {
     surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
@@ -43,7 +49,7 @@ SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& s
   }
 
   using namespace std::placeholders;
-  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2));
+  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
   solver.setState(state);
 }
 
@@ -53,18 +59,30 @@ const std::vector<Mass*>& SoftBody::getSurfaceMasses() const {
 
 
 void SoftBody::update(double time) {
-  VecList states = solver.integrate(time);
+  VecList states = solver.integrate(time, 10);
+  
+  // int i=10;
+  // for(int i=0; i<states.size(); i++) {
+    // printf("%f, %f, %f, %f, %f, %f\n", states[i][0], states[i][1], states[i][2], states[i][3], states[i][4], states[i][5]);
+  // }
+  // printf("\n");
 
-  // TODO: check for internal collisions
-
+  if(fabs(states[0][0]) < 10000000) {
+    framesTillDestruction++;
+  } else if(framesTillDestruction > 0) {
+    printf("Frames till destruction: %d\n", framesTillDestruction);
+    framesTillDestruction = -1;
+  }
+    
+  
+  
   for(int i=0; i<masses.size(); i++) {
     masses[i].update(states[i]);
   }
 }
 
 
-VecList SoftBody::ode(const VecList& states, double time) const {
-  VecList rates = VecList(states.size(), Vector(states[0].size()));
+void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
 
   // Change in position
   for(int i=0; i<states.size(); i++) {
@@ -74,19 +92,11 @@ VecList SoftBody::ode(const VecList& states, double time) const {
   // Change in velocity
   for(const Spring& spring : springs) {
     const std::pair<int, int>& springMasses = spring.getMassIndices();
-    Vector force = spring.calculateForce(states[springMasses.first], states[springMasses.second]);
+    Vector force = spring.calculateForce(states[springMasses.first], states[springMasses.second],
+                                         massRadii);
     rates[springMasses.first][std::slice(3, 3, 1)]  += force;
     rates[springMasses.second][std::slice(3, 3, 1)] -= force;
-    // printf("f = %f, %f, %f\n", force[0], force[1], force[2]);
   }
-
-  
-  // for(int i=0; i<rates.size(); i++) {
-  //   printf("%f, %f, %f, %f, %f, %f\n", rates[i][0], rates[i][1], rates[i][2], rates[i][3], rates[i][4], rates[i][5]);
-  // }
-  // printf("\n");
-
-  return rates;
 }
 
 
@@ -121,7 +131,7 @@ void Mass::update(const Vector& state) {
  *  SPRING
  ******************************************************************************/
 
-Spring::Spring(int mass1, int mass2, float k, float c, float restLen) {
+Spring::Spring(int mass1, int mass2, double k, double c, double restLen) {
   masses = std::make_pair(mass1, mass2);
   this->k = k;
   this->c = c;
@@ -140,16 +150,22 @@ const std::pair<int, int>& Spring::getMassIndices() const {
  * @param m2State State of the second mass attached to the spring.
  * @return The force exerted on the masses.
  */
-Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State) const {
+Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State, double massRadii) const {
 
   // Relative velocity and direction
   Vector velocity  = Vector(m1State[std::slice(3, 3, 1)]) - Vector(m2State[std::slice(3, 3, 1)]);
   Vector direction = Vector(m1State[std::slice(0, 3, 1)]) - Vector(m2State[std::slice(0, 3, 1)]);
 
-  float  length      = vecNorm(direction);              // Spring length
+  double length      = vecNorm(direction);              // Spring length
   Vector u           = direction / length;              // Unit length direction
-  float  deformation = length - restLen;                // Spring deformation
-  Vector force       = -k*deformation*u - c*velocity;
+  double deformation = length - restLen;                // Spring deformation
+  // if(fabs(deformation) < 0.0000000001)                  // Account for precision error
+  //   return Vector(3);
 
-  return force;
+  // Vector collisionForce(3);
+  // if(length <= 2*massRadii)
+  //   collisionForce = u / (length * length);
+
+  // return -k*deformation*u - c*velocity + collisionForce;
+  return -k*deformation*u - c*velocity;
 }

@@ -5,19 +5,19 @@
 #include <vector>
 
 // Vector for physics calculations
-typedef std::valarray<float> Vector;
+typedef std::valarray<double> Vector;
 typedef std::vector<Vector> VecList;
 
 
-float vecDot(const Vector& u, const Vector& v);
-float vecNorm(const Vector& v);
+double vecDot(const Vector& u, const Vector& v);
+double vecNorm(const Vector& v);
 Vector normalize(const Vector& v);
 
 VecList operator+(VecList l1, VecList l2);
-VecList operator+(float scalar, VecList list);
-VecList operator+(VecList list, float scalar);
+VecList operator+(double scalar, VecList list);
+VecList operator+(VecList list, double scalar);
 VecList operator*(VecList l1, VecList l2);
-VecList operator*(float scalar, VecList list);
-VecList operator*(VecList list, float scalar);
+VecList operator*(double scalar, VecList list);
+VecList operator*(VecList list, double scalar);
 
 #endif

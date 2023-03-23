@@ -39,8 +39,8 @@ typedef std::pair<std::vector<GLuint>, std::vector<GLuint>> CubeTriangleData;
 
 class SoftBodyFactory {
   CubeCell buildCubeCell(std::vector<Mass>& masses, std::vector<Spring>& springs,
-                         Vector& cellCenter, float cellSize,
-                         CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ, float k, float c);
+                         Vector& cellCenter, double cellSize,
+                         CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ, double k, double c);
   SoftCubeMesh buildCubeMesh(const std::vector<int>& surfaceMasses, const SoftBody& cube,
                              std::vector<std::vector<std::vector<CubeCell>>>& cells, int numCells);
   CubeTriangleData defineCubeTriangles(std::vector<GLfloat>& vertices,
@@ -48,8 +48,8 @@ class SoftBodyFactory {
                                        std::vector<std::vector<std::vector<CubeCell>>>& cells);
 
 public:
-  std::pair<SoftBody, SoftCubeMesh> buildCube(Vector position=Vector(3), float size=1,
-                                              unsigned int numCells=27, float k=10, float c=0.2);
+  std::pair<SoftBody, SoftCubeMesh> buildCube(Vector position=Vector(3), double size=1,
+                                              unsigned int numCells=27, double k=10, double c=0.2);
 };
 
 #endif

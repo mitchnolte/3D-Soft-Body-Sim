@@ -178,7 +178,7 @@ SoftCubeMesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasse
   std::vector<GLfloat> vertices;
   for(int i=0; i<surfaceMasses.size(); i++) {
     Vector pos = masses[i]->getPos();
-    vertices.insert(vertices.end(), {pos[0], pos[1], pos[2]});
+    vertices.insert(vertices.end(), {(float)pos[0], (float)pos[1], (float)pos[2]});
   }
 
   // Get vertex indices and normals
@@ -197,9 +197,9 @@ SoftCubeMesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasse
 
 
 CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, std::vector<Spring>& springs,
-                                        Vector& cellCenter, float cellSize,
+                                        Vector& cellCenter, double cellSize,
                                         CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ,
-                                        float k, float c)
+                                        double k, double c)
 {
   CubeCell cell;
 
@@ -223,7 +223,7 @@ CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, std::vector<S
   cell.lhh = cellX.hhh;
 
   // Create Springs
-  float centerDist = vecNorm(Vector(cellSize/2, 3));
+  double centerDist = vecNorm(Vector(cellSize/2, 3));
   springs.emplace_back(cell.lll, cell.center, k, c, centerDist);
   springs.emplace_back(cell.llh, cell.center, k, c, centerDist);
   springs.emplace_back(cell.lhl, cell.center, k, c, centerDist);
@@ -251,8 +251,8 @@ CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, std::vector<S
  * @param c Damping coefficient.
  * @return Pair including the cube and a mesh to display it.
  */
-std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, float sideLengths,
-                                                            unsigned int numCells, float k, float c)
+std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, double sideLengths,
+                                                          unsigned int numCells, double k, double c)
 {
   std::vector<Mass> masses;
   std::vector<Spring> springs;
@@ -260,10 +260,11 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
 
   // Round number of cells to nearest cube
   numCells = round(pow(round(cbrt(numCells)), 3));
-  float cellsPerAxis = cbrt(numCells);
+  double cellsPerAxis = cbrt(numCells);
 
-  float cellSize = sideLengths / cellsPerAxis;                  // Cell side length
-  float halfCellSize = cellSize/2;
+  double cellSize = sideLengths / cellsPerAxis;                 // Cell side length
+  double halfCellSize = cellSize/2;
+  double massRadii = cellSize/10;
   Vector firstCellCenter = position - sideLengths/2 + halfCellSize;
   Vector cellCenter;                                            // Center of current cell
   
@@ -549,6 +550,19 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, fl
   masses.shrink_to_fit();
   springs.shrink_to_fit();
   surfaceMasses.shrink_to_fit();
-  SoftBody cube(masses, springs, surfaceMasses);
+
+
+
+
+  // TEMP*******************************************************************************************
+  //    - Move one mass out of place to test soft body physics
+  Vector temp = masses[0].getState();
+  temp[std::slice(0, 3, 1)] -= Vector(halfCellSize, 3);
+  masses[0].update(temp);
+
+
+
+
+  SoftBody cube(masses, springs, surfaceMasses, 1, massRadii);
   return std::make_pair(cube, buildCubeMesh(surfaceMasses, cube, cells, numCells));
 }

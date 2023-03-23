@@ -4,12 +4,12 @@
 #include "soft_body.h"
 
 class Simulation {
-  float time;
-  float dt;
+  double time;
+  double dt;
   std::vector<SoftBody> bodies;
 
 public:
-  Simulation(float dt);
+  Simulation(double dt);
   void addBody(const SoftBody& body);
   const std::vector<SoftBody>& getBodies() const;
   void update();

@@ -4,8 +4,8 @@
 #include <functional>
 #include "vector.h"
 
-typedef std::function< Vector  (const Vector&,  double) >  ODEfn;
-typedef std::function< VecList (const VecList&, double) >  MultiStateODEfn;
+typedef std::function< void (Vector&,  const Vector&,  double) >  ODEfn;
+typedef std::function< void (VecList&, const VecList&, double) >  MultiStateODEfn;
 
 
 class RK4solver {

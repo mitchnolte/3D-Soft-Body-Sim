@@ -52,6 +52,7 @@ void Renderer::initializeCamController() {
 
 void Renderer::setProgram(GLuint program) {
   this->shaderProgram = program;
+  glUseProgram(program);
   glGenBuffers(1, &lightBuffer);
 }
 

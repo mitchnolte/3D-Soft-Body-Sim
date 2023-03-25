@@ -7,9 +7,10 @@ class Simulation {
   double time;
   double dt;
   std::vector<SoftBody> bodies;
+  int iterationsPerUpdate;
 
 public:
-  Simulation(double dt);
+Simulation(double dt, int iterationsPerUpdate=1);
   void addBody(const SoftBody& body);
   const std::vector<SoftBody>& getBodies() const;
   void update();

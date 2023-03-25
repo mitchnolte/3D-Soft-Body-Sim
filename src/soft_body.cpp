@@ -5,13 +5,7 @@
  *  SOFT BODY
  ******************************************************************************/
 
-SoftBody::SoftBody(double mass, double massRadii) {
-  this->mass = mass;
-  this->massRadii = massRadii;
-
-  using namespace std::placeholders;
-  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
-}
+SoftBody::SoftBody() {}
 
 SoftBody::SoftBody(const SoftBody& softBody) {
   masses = softBody.masses;
@@ -19,6 +13,7 @@ SoftBody::SoftBody(const SoftBody& softBody) {
   surfaceMassIndices = softBody.surfaceMassIndices;
   mass = softBody.mass;
   massRadii = softBody.massRadii;
+  friction = softBody.friction;
 
   surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
   for(int i=0; i<surfaceMasses.size(); i++) {
@@ -31,13 +26,14 @@ SoftBody::SoftBody(const SoftBody& softBody) {
 }
 
 SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-                   const std::vector<int>& surfaceMassIndices, double mass, double massRadii)
+         const std::vector<int>& surfaceMassIndices, double mass, double massRadii, double friction)
 {
   this->masses = masses;
   this->springs = springs;
   this->surfaceMassIndices = surfaceMassIndices;
   this->mass = mass;
   this->massRadii = massRadii;
+  this->friction = friction;
   this->surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
   for(int i=0; i<surfaceMasses.size(); i++) {
     surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
@@ -58,8 +54,8 @@ const std::vector<Mass*>& SoftBody::getSurfaceMasses() const {
 }
 
 
-void SoftBody::update(double time) {
-  VecList states = solver.integrate(time);
+void SoftBody::update(double time, int RK4iterations) {
+  VecList states = solver.integrate(time, RK4iterations);
 
   for(int i=0; i<masses.size(); i++) {
     masses[i].update(states[i]);
@@ -68,21 +64,16 @@ void SoftBody::update(double time) {
 
 
 void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
+  for(int i=0; i<states.size(); i++)                               // Change in position
+    rates[i][Mass::POS] = states[i][Mass::VEL];
 
-  // Change in position
-  for(int i=0; i<states.size(); i++) {
-    rates[i][std::slice(0, 3, 1)] = states[i][std::slice(3, 3, 1)];
-  }
+  for(const Spring& spring : springs) {                            // Change in velocity
+    const std::pair<int, int>& sMasses = spring.getMassIndices();
+    Vector force = spring.calculateForce(states[sMasses.first], states[sMasses.second], massRadii);
 
-  // Change in velocity
-  for(const Spring& spring : springs) {
-    const std::pair<int, int>& springMasses = spring.getMassIndices();
-    Vector force = spring.calculateForce(states[springMasses.first], states[springMasses.second],
-                                         massRadii);
-
-    // Additional friction to stabilize structure
-    rates[springMasses.first][std::slice(3, 3, 1)]  += force - 0.008*states[springMasses.first][std::slice(3, 3, 1)];
-    rates[springMasses.second][std::slice(3, 3, 1)] -= force + 0.008*states[springMasses.second][std::slice(3, 3, 1)];
+    // Spring force + additional friction to stabilize structure
+    rates[sMasses.first][Mass::VEL]  += force - friction*states[sMasses.first][Mass::VEL];
+    rates[sMasses.second][Mass::VEL] -= force + friction*states[sMasses.second][Mass::VEL];
   }
 }
 
@@ -91,10 +82,14 @@ void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
  *  MASS
  ******************************************************************************/
 
+std::slice const Mass::POS(0, 3, 1);
+std::slice const Mass::VEL(3, 3, 1);
+
+
 Mass::Mass(Vector pos, Vector vel) {
   this->state = Vector(6);
-  this->state[std::slice(0, 3, 1)] = pos;
-  this->state[std::slice(3, 3, 1)] = vel;
+  this->state[POS] = pos;
+  this->state[VEL] = vel;
 }
 
 const Vector& Mass::getState() const {
@@ -102,11 +97,11 @@ const Vector& Mass::getState() const {
 }
 
 Vector Mass::getPos() const {
-  return Vector(state[std::slice(0, 3, 1)]);
+  return Vector(state[POS]);
 }
 
 Vector Mass::getVel() const {
-  return Vector(state[std::slice(3, 3, 1)]);
+  return Vector(state[VEL]);
 }
 
 void Mass::update(const Vector& state) {
@@ -138,21 +133,21 @@ const std::pair<int, int>& Spring::getMassIndices() const {
  * @return The force exerted on the masses.
  */
 Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State, double massRadii) const {
+  Vector force(3);
 
   // Relative velocity and direction
-  Vector velocity  = Vector(m1State[std::slice(3, 3, 1)]) - Vector(m2State[std::slice(3, 3, 1)]);
-  Vector direction = Vector(m1State[std::slice(0, 3, 1)]) - Vector(m2State[std::slice(0, 3, 1)]);
+  Vector velocity  = Vector(m1State[Mass::VEL]) - Vector(m2State[Mass::VEL]);
+  Vector direction = Vector(m1State[Mass::POS]) - Vector(m2State[Mass::POS]);
 
   double length      = vecNorm(direction);      // Spring length
   Vector u           = direction / length;      // Unit length direction
   double deformation = length - restLen;        // Spring deformation
-  if(fabs(deformation) < 0.0000000001)          // Account for precision error
-    return Vector(3);
+  if(fabs(deformation) > 0.0000000001)          // Account for precision error
+    force = -k*deformation*u - c*velocity;      // Spring force
 
-  // Vector collisionForce(3);
+  // Internal mass collision
   // if(length <= 2*massRadii)
-  //   collisionForce = u / (length * length);
+  //   force += u / (length * length);
 
-  // return -k*deformation*u - c*velocity + collisionForce;
-  return -k*deformation*u - c*velocity;
+  return force;
 }

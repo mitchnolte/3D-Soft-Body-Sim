@@ -37,19 +37,24 @@ struct CubeCell {
  */ 
 typedef std::pair<std::vector<GLuint>, std::vector<GLuint>> CubeTriangleData;
 
+
+/**
+ * @brief Class for building the mass-spring structures of soft bodies and
+ *        the corresponding display meshes for OpenGL.
+ */
 class SoftBodyFactory {
   CubeCell buildCubeCell(std::vector<Mass>& masses, std::vector<Spring>& springs,
                          Vector& cellCenter, double cellSize,
                          CubeCell& cellX, CubeCell& cellY, CubeCell& cellZ, double k, double c);
   SoftCubeMesh buildCubeMesh(const std::vector<int>& surfaceMasses, const SoftBody& cube,
-                             std::vector<std::vector<std::vector<CubeCell>>>& cells, int numCells);
+                          std::vector<std::vector<std::vector<CubeCell>>>& cells, int cellsPerAxis);
   CubeTriangleData defineCubeTriangles(std::vector<GLfloat>& vertices,
                                        const std::vector<int>& surfaceMasses, int cellsPerAxis,
                                        std::vector<std::vector<std::vector<CubeCell>>>& cells);
 
 public:
   std::pair<SoftBody, SoftCubeMesh> buildCube(Vector position=Vector(3), double size=1,
-                                              unsigned int numCells=27, double k=10, double c=0.2);
+                            unsigned int numCells=27, double k=10, double c=0.2, double gamma=-1);
 };
 
 #endif

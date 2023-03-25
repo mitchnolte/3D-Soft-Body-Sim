@@ -241,31 +241,31 @@ CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, std::vector<S
 
 /**
  * @brief Builds the mass-spring structure for a cube out of 2x2x2 cells of
- *        masses with one more mass in the center. The given number of cells is
- *        rounded to the nearest cubic number.
- * @param position Position of the center of the cube.
- * @param sideLengths Side length of the cube.
- * @param numCells Number of cells in the cube.
+ *        masses with one more mass in the center.
+ * @param position Position of the center of the cube. Defaults to (0, 0, 0).
+ * @param sideLengths Side length of the cube. Defaults to 1 m.
+ * @param cellsPerAxis Number of cells per axis of the cube.
  * @param k Spring coefficient.
  * @param c Damping coefficient.
+ * @param gamma Extra friction coefficient. Default value sets it to whatever c
+ *              is set to.
  * @return Pair including the cube and a mesh to display it.
  */
 std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, double sideLengths,
-                                                          unsigned int numCells, double k, double c)
+                                        unsigned int cellsPerAxis, double k, double c, double gamma)
 {
+  if(gamma < 0) gamma = c;
+
   std::vector<Mass> masses;
   std::vector<Spring> springs;
   std::vector<int> surfaceMasses;   // Indices of masses on surface of cube
 
-  // Round number of cells to nearest cube
-  numCells = round(pow(round(cbrt(numCells)), 3));
-  double cellsPerAxis = cbrt(numCells);
-
+  double numCells = pow(cellsPerAxis, 3);
   double cellSize = sideLengths / cellsPerAxis;                 // Cell side length
-  double halfCellSize = cellSize/2;
+  double halfCell = cellSize/2;
   double massRadii = cellSize/10;
-  Vector firstCellCenter = position - sideLengths/2 + halfCellSize;
   Vector cellCenter;                                            // Center of current cell
+  Vector firstCellCenter = position - sideLengths/2 + halfCell;
   
   std::vector<std::vector<std::vector<CubeCell>>> cells;
   cells.resize(cellsPerAxis+1);
@@ -284,7 +284,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
 
   // Cells below z-axis minimum
   CubeCell* cell = &cells[1][1][0];
-  Vector massPos = firstCellCenter - halfCellSize;
+  Vector massPos = firstCellCenter - halfCell;
   masses.emplace_back(massPos);
   cell->llh = masses.size()-1;
   surfaceMasses.push_back(cell->llh);
@@ -317,11 +317,11 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
     cell->llh = priorCell->lhh;
     cell->hlh = priorCell->hhh;
 
-    masses.emplace_back(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize});
+    masses.emplace_back(cellCenter + Vector{-halfCell, halfCell, halfCell});
     cell->lhh = masses.size()-1;
     surfaceMasses.push_back(cell->lhh);
 
-    masses.emplace_back(cellCenter + halfCellSize);
+    masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -340,11 +340,11 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
     cell->llh = priorCellX->hlh;
     cell->lhh = priorCellX->hhh;
 
-    masses.emplace_back(cellCenter + Vector{halfCellSize, -halfCellSize, halfCellSize});
+    masses.emplace_back(cellCenter + Vector{halfCell, -halfCell, halfCell});
     cell->hlh = masses.size()-1;
     surfaceMasses.push_back(cell->hlh);
 
-    masses.emplace_back(cellCenter + halfCellSize);
+    masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -361,7 +361,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
       cell->lhh = priorCellX->hhh;
       cell->hlh = priorCellY->hhh;
 
-      masses.emplace_back(cellCenter + halfCellSize);
+      masses.emplace_back(cellCenter + halfCell);
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
 
@@ -380,7 +380,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
   cell->lhl = cells[1][1][0].llh;
   cell->hhl = cells[1][1][0].hlh;
 
-  massPos = firstCellCenter + Vector{-halfCellSize, -halfCellSize, halfCellSize};
+  massPos = firstCellCenter + Vector{-halfCell, -halfCell, halfCell};
   masses.emplace_back(massPos);
   cell->lhh = masses.size()-1;
   surfaceMasses.push_back(cell->lhh);
@@ -401,11 +401,11 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
     cell->lhl = priorCell->lhh;
     cell->hhl = priorCell->hhh;
 
-    masses.emplace_back(cellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize});
+    masses.emplace_back(cellCenter + Vector{-halfCell, halfCell, halfCell});
     cell->lhh = masses.size()-1;
     surfaceMasses.push_back(cell->lhh);
 
-    masses.emplace_back(cellCenter + halfCellSize);
+    masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -425,7 +425,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
     cell->lhh = priorCellX->hhh;
     cell->hhl = priorCellZ->hlh;
 
-    masses.emplace_back(cellCenter + halfCellSize);
+    masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -441,7 +441,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
       cell->lhh = priorCellX->hhh;
       cell->hhl = priorCellZ->hhh;
 
-      masses.emplace_back(cellCenter + halfCellSize);
+      masses.emplace_back(cellCenter + halfCell);
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
 
@@ -461,7 +461,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
   cell->hhl = cells[1][1][0].lhh;
   cell->hlh = cells[1][0][1].lhh;
 
-  massPos = firstCellCenter + Vector{-halfCellSize, halfCellSize, halfCellSize};
+  massPos = firstCellCenter + Vector{-halfCell, halfCell, halfCell};
   masses.emplace_back(massPos);
   cell->hhh = masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
@@ -477,7 +477,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
     cell->hhl = priorCell->hhh;
     cell->hlh = cells[1][0][z].lhh;
 
-    masses.emplace_back(cellCenter + halfCellSize);
+    masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -496,7 +496,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
     cell->hlh = priorCellY->hhh;
     cell->hhl = priorCellZ->lhh;
 
-    masses.emplace_back(cellCenter + halfCellSize);
+    masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
@@ -512,7 +512,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
       cell->hlh = priorCellY->hhh;
       cell->hhl = priorCellZ->hhh;
 
-      masses.emplace_back(cellCenter + halfCellSize);
+      masses.emplace_back(cellCenter + halfCell);
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
 
@@ -527,7 +527,7 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
 
 
   /**
-   * Create cube
+   * Fill in cube
    */
   cellCenter = firstCellCenter;
   for(int x=1; x<=cellsPerAxis; x++) {
@@ -549,11 +549,11 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
 
         cellCenter[2] += cellSize;        // Increment cell z position 
       }
-      cellCenter[1] += cellSize;          // Increment cell y position
       cellCenter[2] = firstCellCenter[2]; // Reset cell z position
+      cellCenter[1] += cellSize;          // Increment cell y position
     }
-    cellCenter[0] += cellSize;            // Increment cell x position
     cellCenter[1] = firstCellCenter[1];   // Reset cell y position
+    cellCenter[0] += cellSize;            // Increment cell x position
   }
 
   masses.shrink_to_fit();
@@ -564,14 +564,18 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
 
 
   // TEMP*******************************************************************************************
-  //    - Move one mass out of place to test soft body physics
+  //    - Move mass out of place to test soft body physics
   Vector temp = masses[0].getState();
-  temp[std::slice(0, 3, 1)] -= Vector(halfCellSize, 3);
+  temp[Mass::POS] -= Vector(halfCell/2, 3);
   masses[0].update(temp);
 
+  temp = masses[cells[cellsPerAxis][1][1].hll].getState();
+  temp[Mass::POS] += Vector{halfCell, -halfCell, -halfCell};
+  masses[cells[cellsPerAxis][1][1].hll].update(temp);
 
 
 
-  SoftBody cube(masses, springs, surfaceMasses, 1, massRadii);
+
+  SoftBody cube(masses, springs, surfaceMasses, 1, massRadii, gamma);
   return std::make_pair(cube, buildCubeMesh(surfaceMasses, cube, cells, numCells));
 }

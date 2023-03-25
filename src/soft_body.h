@@ -12,19 +12,21 @@ class Spring;
 class SoftBody {
   std::vector<Mass> masses;
   std::vector<Spring> springs;
-  std::vector<Mass*> surfaceMasses;
-  std::vector<int> surfaceMassIndices;
-  double mass;
-  double massRadii;
-  MultiStateRK4solver solver;
+  std::vector<Mass*> surfaceMasses;     // List of pointers to surface masses
+  std::vector<int> surfaceMassIndices;  // Indices of surface masses in mass list
+  double mass;                          // Overall body mass
+  double massRadii;                     // Radius of each individual point mass
+  MultiStateRK4solver solver;           // ODE solver
+  double friction;                      // Friction coefficient
 
 public:
-  SoftBody(double mass=1, double massRadii=1);
+  SoftBody();
   SoftBody(const SoftBody& softBody);
   SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-           const std::vector<int>& surfaceMassIndices, double mass=1, double massRadii=1);
+           const std::vector<int>& surfaceMassIndices, double mass=1, double massRadii=1,
+           double friction=0.0);
   const std::vector<Mass*>& getSurfaceMasses() const;
-  void update(double time);
+  void update(double time, int RK4iterations);
   void ode(VecList& rates, const VecList& states, double time) const;
 };
 
@@ -33,6 +35,9 @@ class Mass {
   Vector state;    // Current state of mass; updated at end of time step
 
 public:
+  static const std::slice POS;  // Vector slice for the position of a mass state
+  static const std::slice VEL;  // Vector slice for the velocity of a mass state
+
   Mass(Vector pos=Vector(3), Vector vel=Vector(3));
   const Vector& getState() const;
   Vector getPos() const;
@@ -43,9 +48,9 @@ public:
 
 class Spring {
   std::pair<int, int> masses; // Indices of connected masses in soft body mass list
-  double k;                    // Spring coefficient
-  double c;                    // Damping coefficient
-  double restLen;
+  double k;                   // Spring coefficient
+  double c;                   // Damping coefficient
+  double restLen;             // Length of spring at rest
 
 public:
   Spring(int mass1, int mass2, double k, double c, double restLen);

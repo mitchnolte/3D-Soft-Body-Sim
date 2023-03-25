@@ -1,9 +1,15 @@
 #include "simulation.h"
 
 
-Simulation::Simulation(double dt) {
+/**
+ * @brief Constructor.
+ * @param dt Time between each update.
+ * @param iterationsPerUpdate Number of RK4 iterations per update.
+ */
+Simulation::Simulation(double dt, int iterationsPerUpdate) {
   this->time = 0;
   this->dt = dt;
+  this->iterationsPerUpdate = iterationsPerUpdate;
 }
 
 void Simulation::addBody(const SoftBody& body) {
@@ -17,7 +23,7 @@ const std::vector<SoftBody>& Simulation::getBodies() const {
 void Simulation::update() {
   double tEnd = time + dt;
   for(SoftBody& body : bodies) {
-    body.update(tEnd);
+    body.update(tEnd, iterationsPerUpdate);
   }
 
   // TODO: Check for collisions

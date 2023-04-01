@@ -12,18 +12,31 @@ Simulation::Simulation(double dt, int iterationsPerUpdate) {
   this->iterationsPerUpdate = iterationsPerUpdate;
 }
 
-void Simulation::addBody(const SoftBody& body) {
-  bodies.push_back(body);
+Simulation::~Simulation() {
+  for(int i=0; i<softBodies.size(); i++) {
+    delete softBodies[i];
+  }
+  for(int i=0; i<rigidBodies.size(); i++) {
+    delete rigidBodies[i];
+  }
 }
 
-const std::vector<SoftBody>& Simulation::getBodies() const {
-  return bodies;
+void Simulation::addBody(const SoftBody& body) {
+  softBodies.push_back(new SoftBody(body));
+}
+
+void Simulation::addBody(const RigidRectPrism& body) {
+  rigidBodies.push_back(new RigidRectPrism(body));
+}
+
+const std::vector<SoftBody*>& Simulation::getSoftBodies() const {
+  return softBodies;
 }
 
 void Simulation::update() {
   double tEnd = time + dt;
-  for(SoftBody& body : bodies) {
-    body.update(tEnd, iterationsPerUpdate);
+  for(SoftBody* body : softBodies) {
+    body->update(tEnd, iterationsPerUpdate);
   }
 
   // TODO: Check for collisions

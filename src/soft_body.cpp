@@ -85,7 +85,6 @@ void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
 std::slice const Mass::POS(0, 3, 1);
 std::slice const Mass::VEL(3, 3, 1);
 
-
 Mass::Mass(Vector pos, Vector vel) {
   this->state = Vector(6);
   this->state[POS] = pos;

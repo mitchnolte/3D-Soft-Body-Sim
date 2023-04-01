@@ -108,7 +108,7 @@ void Renderer::display() {
   // Set uniform variables
 	glBindBufferBase(GL_UNIFORM_BUFFER, 1, lightBuffer);
 	int camPos = glGetUniformLocation(shaderProgram, "camPos");
-	glUniformMatrix3fv(camPos, 1, 0, glm::value_ptr(camera.getPosition()));
+	glUniform3fv(camPos, 1, glm::value_ptr(camera.getPosition()));
 
   // Display objects
   camController.updateCamera();

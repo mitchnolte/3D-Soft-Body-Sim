@@ -9,7 +9,9 @@
 #include "soft_body.h"
 
 
-Renderer::Renderer(float fps) : fps(fps) {}
+Renderer::Renderer(float fps) {
+  this->fps = fps;
+}
 
 Renderer::~Renderer() {
   for(int i=0; i<meshes.size(); i++) {
@@ -56,6 +58,11 @@ void Renderer::setProgram(GLuint program) {
   glGenBuffers(1, &lightBuffer);
 }
 
+void Renderer::setViewport(float winWidth, float winHeight, float fov) {
+  glViewport(0, 0, winWidth, winHeight);
+  camera.setPerspective(winWidth/winHeight, fov);
+}
+
 void Renderer::setLight(const Light& light) {
 	glBindBuffer(GL_UNIFORM_BUFFER, lightBuffer);
 	glBufferData(GL_UNIFORM_BUFFER, sizeof(light), &light, GL_STATIC_DRAW);
@@ -70,8 +77,8 @@ void Renderer::addMesh(const SoftCubeMesh& mesh) {
 }
 
 
-void Renderer::initializeCamera(const glm::vec3& position, const glm::vec3& direction,
-                                float aspectRatio, float fov)
+void Renderer::initializeCamera(const glm::vec3& position, const glm::vec3& direction, float fov,
+                                float aspectRatio)
 {
   camera = Camera(position, direction, aspectRatio, fov);
   initializeCamController();

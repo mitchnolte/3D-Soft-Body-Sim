@@ -36,9 +36,10 @@ public:
   Renderer(float fps=60);
   ~Renderer();
   void setProgram(GLuint program);
+  void setViewport(float winWidth, float winHeight, float fov=0.0);
   void setLight(const Light& light);
-  void initializeCamera(const glm::vec3& position, const glm::vec3& direction, float aspectRatio=1,
-                        float fov=1.57);
+  void initializeCamera(const glm::vec3& position, const glm::vec3& direction, float fov, 
+                        float aspectRatio=1);
   void addMesh(const Mesh& mesh);
   void addMesh(const SoftCubeMesh& mesh);
   void handleKeyInput(int key, int action);

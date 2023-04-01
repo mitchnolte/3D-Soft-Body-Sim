@@ -6,10 +6,10 @@ Camera::Camera() {}
 
 Camera::Camera(const glm::vec3& position, const glm::vec3& direction, float aspectRatio, float fov)
 {
-  this->position = position;
-  this->direction = glm::normalize(direction);
-  this->fov = fov;
-  projection = glm::perspective(fov, aspectRatio, 1.0f, 800.0f);
+  this->position   = position;
+  this->direction  = glm::normalize(direction);
+  this->fov        = fov;
+  this->projection = glm::perspective(fov, aspectRatio, 1.0f, 800.0f);
 }
 
 void Camera::setPosition(const glm::vec3& position) {

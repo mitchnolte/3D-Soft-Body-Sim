@@ -1,4 +1,16 @@
 #include "simulation.h"
+#include "collision_data.h"
+
+
+/**
+ * @brief Convenience function to append a std::vector of collision data to the
+ *        main collision data std::vector in Simulation::update.
+ * @param colls Main collision list.
+ * @param newColls New collision data to append.
+ */
+void addCollisions(std::vector<Collision*>& colls, const std::vector<Collision*>& newColls) {
+  colls.insert(colls.end(), newColls.begin(), newColls.end());
+}
 
 
 /**
@@ -42,16 +54,23 @@ void Simulation::update() {
     softBodyStates[i] = &softBodies[i]->calculateUpdatedState(tEnd, iterationsPerUpdate);
   }
 
-  // Check for collisions
-  for(SoftBody* softBody : softBodies) {
+  // Collision detection
+  std::vector<Collision*> collisions;
+  for(int i=0; i<softBodyStates.size(); i++) {
     for(RigidBody* rigidBody : rigidBodies) {
-      if(vecNorm(rigidBody->getCenterOfMass() - softBody->getCenterOfMass())
-         <= rigidBody->getBoundingRadius() + softBody->getBoundingRadius())
+
+      // Bounding sphere test
+      if(vecNorm(rigidBody->getCenterOfMass() - softBodies[i]->getCenterOfMass())
+         <= rigidBody->getBoundingRadius() + softBodies[i]->getBoundingRadius())
       {
-        // Check for actual collision
+        // Full collision test
+        addCollisions(collisions, rigidBody->detectCollisions(softBodies[i], *softBodyStates[i],
+                                                              time, dt));
       }
     }
   }
+
+  // Collision response
 
   // Update soft bodies
   for(int i=0; i<softBodies.size(); i++) {

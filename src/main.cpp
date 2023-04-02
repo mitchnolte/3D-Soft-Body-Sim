@@ -68,6 +68,13 @@ DWORD WINAPI simulationUpdateLoop(LPVOID args) {
 
 
 int main() {
+  std::vector<int> test(1);
+  test[0] = -1;
+  test.push_back(-2);
+  for(int i=0; i<test.size(); i++) {
+    std::cout << test[i] << std::endl;
+  }
+  
   glfwSetErrorCallback(errorCallback);
   
   // Initialize glfw

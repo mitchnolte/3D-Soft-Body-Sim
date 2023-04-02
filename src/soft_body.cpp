@@ -17,9 +17,8 @@ SoftBody::SoftBody(const SoftBody& softBody) {
   boundingRadius = softBody.boundingRadius;
 
   surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
-  for(int i=0; i<surfaceMasses.size(); i++) {
+  for(int i=0; i<surfaceMasses.size(); i++)
     surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
-  }
   
   using namespace std::placeholders;
   solver = softBody.solver;
@@ -38,14 +37,12 @@ SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& s
   this->massRadii = massRadii;
   this->friction = friction;
   this->surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
-  for(int i=0; i<surfaceMasses.size(); i++) {
+  for(int i=0; i<surfaceMasses.size(); i++)
     surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
-  }
 
   VecList state(masses.size());
-  for(int i=0; i<masses.size(); i++) {
+  for(int i=0; i<masses.size(); i++)
     state[i] = masses[i].getState();
-  }
 
   using namespace std::placeholders;
   solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
@@ -73,11 +70,9 @@ const VecList& SoftBody::calculateUpdatedState(double time, int RK4iterations) {
  * @param states Updated states.
  */
 void SoftBody::update(const VecList& states) {
-  for(int i=0; i<masses.size(); i++) {
+  for(int i=0; i<masses.size(); i++)
     masses[i].update(states[i]);
-  }
 }
-
 
 /**
  * @brief Set of ordinary differential equations that control the state of the
@@ -130,9 +125,7 @@ Vector SoftCube::getCenterOfMass() {
   return (masses[cornerMasses[0]].getPos() + masses[cornerMasses[1]].getPos() +
           masses[cornerMasses[2]].getPos() + masses[cornerMasses[3]].getPos() +
           masses[cornerMasses[4]].getPos() + masses[cornerMasses[5]].getPos() +
-          masses[cornerMasses[6]].getPos() + masses[cornerMasses[7]].getPos())
-                                           /
-                                     Vector(8, 3);
+          masses[cornerMasses[6]].getPos() + masses[cornerMasses[7]].getPos()) / 8;
 }
 
 
@@ -154,11 +147,11 @@ const Vector& Mass::getState() const {
 }
 
 Vector Mass::getPos() const {
-  return Vector(state[POS]);
+  return state[POS];
 }
 
 Vector Mass::getVel() const {
-  return Vector(state[VEL]);
+  return state[VEL];
 }
 
 void Mass::update(const Vector& state) {
@@ -193,8 +186,8 @@ Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State, doub
   Vector force(3);
 
   // Relative velocity and direction
-  Vector velocity  = Vector(m1State[Mass::VEL]) - Vector(m2State[Mass::VEL]);
-  Vector direction = Vector(m1State[Mass::POS]) - Vector(m2State[Mass::POS]);
+  Vector velocity  = m1State[Mass::VEL] - m2State[Mass::VEL];
+  Vector direction = m1State[Mass::POS] - m2State[Mass::POS];
 
   double length      = vecNorm(direction);      // Spring length
   Vector u           = direction / length;      // Unit length direction

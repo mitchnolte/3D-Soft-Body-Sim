@@ -14,6 +14,7 @@ SoftBody::SoftBody(const SoftBody& softBody) {
   mass = softBody.mass;
   massRadii = softBody.massRadii;
   friction = softBody.friction;
+  boundingRadius = softBody.boundingRadius;
 
   surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
   for(int i=0; i<surfaceMasses.size(); i++) {
@@ -26,11 +27,13 @@ SoftBody::SoftBody(const SoftBody& softBody) {
 }
 
 SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-         const std::vector<int>& surfaceMassIndices, double mass, double massRadii, double friction)
+                   const std::vector<int>& surfaceMassIndices, double boundingRadius, double mass,
+                   double massRadii, double friction)
 {
   this->masses = masses;
   this->springs = springs;
   this->surfaceMassIndices = surfaceMassIndices;
+  this->boundingRadius = boundingRadius;
   this->mass = mass;
   this->massRadii = massRadii;
   this->friction = friction;
@@ -53,16 +56,37 @@ const std::vector<Mass*>& SoftBody::getSurfaceMasses() const {
   return surfaceMasses;
 }
 
+double SoftBody::getBoundingRadius() const {
+  return boundingRadius;
+}
 
-void SoftBody::update(double time, int RK4iterations) {
-  VecList states = solver.integrate(time, RK4iterations);
+/**
+ * @brief Calculates the updated state of the soft body at the given time using
+ *        the given number of RK4iterations.
+ */
+const VecList& SoftBody::calculateUpdatedState(double time, int RK4iterations) {
+  return solver.integrate(time, RK4iterations);
+}
 
+/**
+ * @brief Sets the state of each mass in the soft body.
+ * @param states Updated states.
+ */
+void SoftBody::update(const VecList& states) {
   for(int i=0; i<masses.size(); i++) {
     masses[i].update(states[i]);
   }
 }
 
 
+/**
+ * @brief Set of ordinary differential equations that control the state of the
+ *        soft body. Meant to be used by a MultiStateRK4solver object.
+ * @param rates Destination array that's populated with a dState/dt vector for
+ *              each state vector in the given list.
+ * @param states List of states calculated from the previous iteration.
+ * @param time Time which the ODEs are integrated up to.
+ */
 void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
   for(int i=0; i<states.size(); i++)                               // Change in position
     rates[i][Mass::POS] = states[i][Mass::VEL];
@@ -75,6 +99,40 @@ void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
     rates[sMasses.first][Mass::VEL]  += force - friction*states[sMasses.first][Mass::VEL];
     rates[sMasses.second][Mass::VEL] -= force + friction*states[sMasses.second][Mass::VEL];
   }
+}
+
+
+/*******************************************************************************
+ *  SOFT CUBE
+ ******************************************************************************/
+
+SoftCube::SoftCube() {}
+
+SoftCube::SoftCube(const SoftCube& cube) : SoftBody(cube) {
+  for(int i=0; i<8; i++)
+    cornerMasses[i] = cube.cornerMasses[i];
+}
+
+SoftCube::SoftCube(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
+                   const std::vector<int>& surfaceMassIndices, int cornerMassIndices[8],
+                   double boundingRadius, double mass, double massRadii, double friction)
+  : SoftBody(masses, springs, surfaceMassIndices, boundingRadius, mass, massRadii, friction)
+{
+  for(int i=0; i<8; i++)
+    cornerMasses[i] = cornerMassIndices[i];
+}
+
+/**
+ * @brief Approximates the cube's center of mass by calculating the average
+ *        position of the 8 masses located on one of the cube's corners.
+ */
+Vector SoftCube::getCenterOfMass() {
+  return (masses[cornerMasses[0]].getPos() + masses[cornerMasses[1]].getPos() +
+          masses[cornerMasses[2]].getPos() + masses[cornerMasses[3]].getPos() +
+          masses[cornerMasses[4]].getPos() + masses[cornerMasses[5]].getPos() +
+          masses[cornerMasses[6]].getPos() + masses[cornerMasses[7]].getPos())
+                                           /
+                                     Vector(8, 3);
 }
 
 

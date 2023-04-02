@@ -53,8 +53,8 @@ class SoftBodyFactory {
                                        std::vector<std::vector<std::vector<CubeCell>>>& cells);
 
 public:
-  std::pair<SoftBody, SoftCubeMesh> buildCube(Vector position=Vector(3), double size=1,
-                            unsigned int numCells=27, double k=10, double c=0.2, double gamma=-1);
+  std::pair<SoftCube, SoftCubeMesh> buildCube(Vector position=Vector(3), double size=1,
+                              unsigned int numCells=27, double k=10, double c=0.2, double gamma=-1);
 };
 
 #endif

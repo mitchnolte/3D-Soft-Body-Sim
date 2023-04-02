@@ -96,7 +96,7 @@ int main() {
 
   // Initialize simulation
   SoftBodyFactory factory;
-  SoftBody cube;
+  SoftCube cube;
   SoftCubeMesh cubeMesh;
   std::tie(cube, cubeMesh) = factory.buildCube(Vector(3), 1, 3, 1.5, 0.1);
 
@@ -109,7 +109,7 @@ int main() {
   sim.addBody(cube);
   cubeMesh.bindCube(sim.getSoftBodies()[0]);
 
-  RigidRectPrism rect(Vector{0, 0, -5}, 4, 4, 2, 0.52, Vector{0.2, 0.8, 0.5});
+  RigidRectPrism rect(Vector{0, 0, -3}, 4, 4, 2, 0.52, Vector{0.2, 0.8, 0.5});
   sim.addBody(rect);
 
 

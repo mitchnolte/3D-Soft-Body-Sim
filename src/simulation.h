@@ -14,7 +14,7 @@ class Simulation {
 public:
   Simulation(double dt, int iterationsPerUpdate=1);
   ~Simulation();
-  void addBody(const SoftBody& body);
+  void addBody(const SoftCube& body);
   void addBody(const RigidRectPrism& body);
   const std::vector<SoftBody*>& getSoftBodies() const;
   void update();

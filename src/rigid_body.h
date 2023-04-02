@@ -7,9 +7,13 @@
 
 class RigidBody {
 protected:
-  double boundingRadius;  // Radius of bounding sphere
+  Vector centerOfMass;    // Position of the center of mass
+  double boundingRadius;  // Radius of bounding sphere for collision detection
 
 public:
+  const Vector& getCenterOfMass() const;
+  double getBoundingRadius() const;
+
   virtual Mesh buildMesh() = 0;
   // virtual void detectCollision(const SoftBody* softBody) = 0;
 };
@@ -25,7 +29,6 @@ struct QuadFace {
 };
 
 class RigidRectPrism : public RigidBody {
-  Vector centerOfMass;  // Position of the center of mass
   Vector vertices[8];   // Positions of the prism's vertices
   QuadFace faces[6];    // Faces of the prism for collision detection
 

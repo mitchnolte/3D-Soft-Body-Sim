@@ -4,6 +4,15 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 
+const Vector& RigidBody::getCenterOfMass() const {
+  return centerOfMass;
+}
+
+double RigidBody::getBoundingRadius() const {
+  return boundingRadius;
+}
+
+
 /*******************************************************************************
  *  RIGID RECTANGULAR PRISM
  ******************************************************************************/
@@ -12,6 +21,7 @@ RigidRectPrism::RigidRectPrism() {}
 
 RigidRectPrism::RigidRectPrism(const RigidRectPrism& rect) {
   this->centerOfMass = rect.centerOfMass;
+  this->boundingRadius = rect.boundingRadius;
   for(int i=0; i<8; i++)
     this->vertices[i] = rect.vertices[i];
 
@@ -36,12 +46,14 @@ RigidRectPrism::RigidRectPrism(const RigidRectPrism& rect) {
 RigidRectPrism::RigidRectPrism(const Vector& centerOfMass, float xLen, float yLen, float zLen,
                                float rotateAngle, const Vector& rotateAxis)
 {
-  boundingRadius = vecNorm(Vector{xLen, yLen, zLen});
+  this->centerOfMass = centerOfMass;
 
-  // Create vertices centered on origin
   xLen /= 2;
   yLen /= 2;
   zLen /= 2;
+  boundingRadius = vecNorm(Vector{xLen, yLen, zLen});
+
+  // Create vertices centered on origin
   vertices[0] = Vector{-xLen, -yLen, -zLen};
   vertices[1] = Vector{-xLen,  yLen, -zLen};
   vertices[2] = Vector{ xLen,  yLen, -zLen};

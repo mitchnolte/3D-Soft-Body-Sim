@@ -20,7 +20,7 @@ void RK4solver::setState(const Vector& state, double time) {
   this->time = time;
 }
 
-const Vector& RK4solver::getState() {
+const Vector& RK4solver::getState() const {
   return state;
 }
 
@@ -84,7 +84,7 @@ void MultiStateRK4solver::setState(const VecList& state, double time) {
   }
 }
 
-const VecList& MultiStateRK4solver::getState() {
+const VecList& MultiStateRK4solver::getState() const {
   return state;
 }
 

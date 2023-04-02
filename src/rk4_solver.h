@@ -18,7 +18,7 @@ public:
   RK4solver(ODEfn odeFunction, const Vector& state=Vector(), double time=0.0);
   void setODEfunction(ODEfn odeFunction);
   void setState(const Vector& state, double time=0.0);
-  const Vector& getState();
+  const Vector& getState() const;
   const Vector& integrate(double time, int steps=4);
 };
 
@@ -37,7 +37,7 @@ public:
   MultiStateRK4solver(MultiStateODEfn odeFunction, const VecList& state=VecList(), double time=0.0);
   void setODEfunction(MultiStateODEfn odeFunction);
   void setState(const VecList& state, double time=0.0);
-  const VecList& getState();
+  const VecList& getState() const;
   const VecList& integrate(double time, int steps=1);
 };
 

@@ -62,16 +62,16 @@ void Mesh::computeNormals(GLfloat* normals, GLfloat* vertices, GLuint* indices, 
   }
   
   // Average and normalize normals
-//   for(int i=0; i<numV; i+=3) {
-//     normals[i]   /= triangleCount[indices[i/3]];
-//     normals[i+1] /= triangleCount[indices[i/3 + 1]];
-//     normals[i+2] /= triangleCount[indices[i/3 + 2]];
-// 
-//     GLfloat len = vecNorm(Vector{normals[i], normals[i+1], normals[i+2]});
-//     normals[i]   /= len;
-//     normals[i+1] /= len;
-//     normals[i+2] /= len;
-//   }
+  for(int i=0; i<numV; i+=3) {
+    normals[i]   /= triangleCount[indices[i/3]];
+    normals[i+1] /= triangleCount[indices[i/3 + 1]];
+    normals[i+2] /= triangleCount[indices[i/3 + 2]];
+
+    GLfloat len = vecNorm(Vector{normals[i], normals[i+1], normals[i+2]});
+    normals[i]   /= len;
+    normals[i+1] /= len;
+    normals[i+2] /= len;
+  }
 }
 
 

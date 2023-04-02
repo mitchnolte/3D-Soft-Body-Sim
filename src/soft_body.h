@@ -10,24 +10,43 @@ class Spring;
 
 
 class SoftBody {
+protected:
   std::vector<Mass> masses;
   std::vector<Spring> springs;
   std::vector<Mass*> surfaceMasses;     // List of pointers to surface masses
   std::vector<int> surfaceMassIndices;  // Indices of surface masses in mass list
   double mass;                          // Overall body mass
-  double massRadii;                     // Radius of each individual point mass
+  double massRadii;                     // Radius of a single point mass for internal collision
   MultiStateRK4solver solver;           // ODE solver
   double friction;                      // Friction coefficient
+  double boundingRadius;                // Radius of bounding sphere for collision detection
 
 public:
   SoftBody();
   SoftBody(const SoftBody& softBody);
   SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-           const std::vector<int>& surfaceMassIndices, double mass=1, double massRadii=1,
-           double friction=0.0);
+           const std::vector<int>& surfaceMassIndices, double boundingRadius, double mass,
+           double massRadii, double friction);
   const std::vector<Mass*>& getSurfaceMasses() const;
-  void update(double time, int RK4iterations);
+  double getBoundingRadius() const;
+  const VecList& calculateUpdatedState(double time, int RK4iterations);
+  void update(const VecList& states);
   void ode(VecList& rates, const VecList& states, double time) const;
+
+  virtual Vector getCenterOfMass() = 0;
+};
+
+
+class SoftCube : public SoftBody {
+  int cornerMasses[8];  // Indices of corner masses
+
+public:
+  SoftCube();
+  SoftCube(const SoftCube& cube);
+  SoftCube(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
+           const std::vector<int>& surfaceMassIndices, int cornerMassIndices[8],
+           double boundingRadius, double mass=1, double massRadii=1, double friction=0.0);
+  Vector getCenterOfMass();
 };
 
 

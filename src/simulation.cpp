@@ -21,8 +21,8 @@ Simulation::~Simulation() {
   }
 }
 
-void Simulation::addBody(const SoftBody& body) {
-  softBodies.push_back(new SoftBody(body));
+void Simulation::addBody(const SoftCube& body) {
+  softBodies.push_back(new SoftCube(body));
 }
 
 void Simulation::addBody(const RigidRectPrism& body) {
@@ -35,12 +35,27 @@ const std::vector<SoftBody*>& Simulation::getSoftBodies() const {
 
 void Simulation::update() {
   double tEnd = time + dt;
-  for(SoftBody* body : softBodies) {
-    body->update(tEnd, iterationsPerUpdate);
+
+  // Calculate soft body states at end of update step
+  std::vector<const VecList*> softBodyStates(softBodies.size());
+  for(int i=0; i<softBodies.size(); i++) {
+    softBodyStates[i] = &softBodies[i]->calculateUpdatedState(tEnd, iterationsPerUpdate);
   }
 
-  // TODO: Check for collisions
+  // Check for collisions
+  for(SoftBody* softBody : softBodies) {
+    for(RigidBody* rigidBody : rigidBodies) {
+      if(vecNorm(rigidBody->getCenterOfMass() - softBody->getCenterOfMass())
+         <= rigidBody->getBoundingRadius() + softBody->getBoundingRadius())
+      {
+        // Check for actual collision
+      }
+    }
+  }
 
-
+  // Update soft bodies
+  for(int i=0; i<softBodies.size(); i++) {
+    softBodies[i]->update(*softBodyStates[i]);
+  }
   time = tEnd;
 }

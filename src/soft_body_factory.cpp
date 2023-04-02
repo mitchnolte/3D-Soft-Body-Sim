@@ -188,7 +188,7 @@ SoftCubeMesh SoftBodyFactory::buildCubeMesh(const std::vector<int>& surfaceMasse
   Mesh::computeNormals(normals, vertices.data(), indices.data(), vertices.size(), indices.size());
 
   // Material properties
-  Material material = {{1, 0, 0, 1}, 0.2};
+  Material material = {{1, 0, 0, 1}, 1};
 
   return SoftCubeMesh(vertices.data(), normals, indices.data(), dupeVIndices,
                       vertices.size(), indices.size(), material);
@@ -251,7 +251,7 @@ CubeCell SoftBodyFactory::buildCubeCell(std::vector<Mass>& masses, std::vector<S
  *              is set to.
  * @return Pair including the cube and a mesh to display it.
  */
-std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, double sideLengths,
+std::pair<SoftCube, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, double sideLengths,
                                         unsigned int cellsPerAxis, double k, double c, double gamma)
 {
   if(gamma < 0) gamma = c;
@@ -259,12 +259,14 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
   std::vector<Mass> masses;
   std::vector<Spring> springs;
   std::vector<int> surfaceMasses;   // Indices of masses on surface of cube
+  int cornerMasses[8];              // Indices of masses on corners of cube
 
-  double numCells = pow(cellsPerAxis, 3);
-  double cellSize = sideLengths / cellsPerAxis;                 // Cell side length
-  double halfCell = cellSize/2;
-  double massRadii = cellSize/10;
-  Vector cellCenter;                                            // Center of current cell
+  double numCells       = pow(cellsPerAxis, 3);
+  double cellSize       = sideLengths / cellsPerAxis;             // Cell side length
+  double halfCell       = cellSize/2;
+  double massRadii      = cellSize/10;                            // Used for internal collision
+  double boundingRadius = 1.2*vecNorm(Vector(sideLengths/2, 3));  // Radius of bounding sphere
+  Vector cellCenter;                                              // Center of current cell
   Vector firstCellCenter = position - sideLengths/2 + halfCell;
   
   std::vector<std::vector<std::vector<CubeCell>>> cells;
@@ -556,6 +558,16 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
     cellCenter[0] += cellSize;            // Increment cell x position
   }
 
+  // Find corner masses
+  cornerMasses[0] = cells[1][1][1].lll;
+  cornerMasses[1] = cells[1][1][cellsPerAxis].llh;
+  cornerMasses[2] = cells[1][cellsPerAxis][1].lhl;
+  cornerMasses[3] = cells[cellsPerAxis][1][1].hll;
+  cornerMasses[4] = cells[1][cellsPerAxis][cellsPerAxis].lhh;
+  cornerMasses[5] = cells[cellsPerAxis][1][cellsPerAxis].hll;
+  cornerMasses[6] = cells[cellsPerAxis][cellsPerAxis][1].hhl;
+  cornerMasses[7] = cells[cellsPerAxis][cellsPerAxis][cellsPerAxis].hhh;
+
   masses.shrink_to_fit();
   springs.shrink_to_fit();
   surfaceMasses.shrink_to_fit();
@@ -576,6 +588,6 @@ std::pair<SoftBody, SoftCubeMesh> SoftBodyFactory::buildCube(Vector position, do
 
 
 
-  SoftBody cube(masses, springs, surfaceMasses, 1, massRadii, gamma);
+  SoftCube cube(masses, springs, surfaceMasses, cornerMasses, boundingRadius, 1, massRadii, gamma);
   return std::make_pair(cube, buildCubeMesh(surfaceMasses, cube, cells, numCells));
 }

@@ -6,6 +6,7 @@
 #include <glm/gtc/type_ptr.hpp>
 #include <GL/glew.h>
 #include "renderer.h"
+#include "mesh.h"
 #include "soft_body.h"
 
 
@@ -72,8 +73,8 @@ void Renderer::addMesh(const Mesh& mesh) {
   meshes.push_back(new Mesh(mesh));
 }
 
-void Renderer::addMesh(const SoftCubeMesh& mesh) {
-  meshes.push_back(new SoftCubeMesh(mesh));
+void Renderer::addMesh(const SoftBodyMesh& mesh) {
+  meshes.push_back(new SoftBodyMesh(mesh));
 }
 
 
@@ -112,8 +113,8 @@ void Renderer::display() {
 
   // Display objects
   camController.updateCamera();
-  glm::mat4 viewPerspective = camera.getViewPerspective();
+  glm::mat4 viewProjection = camera.getViewProjection();
   for(Mesh* mesh : meshes) {
-    mesh->display(shaderProgram, viewPerspective);
+    mesh->display(shaderProgram, viewProjection);
   }
 }

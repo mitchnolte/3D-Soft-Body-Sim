@@ -1,11 +1,16 @@
 #ifndef RIGID_BODY_H
 #define RIGID_BODY_H
 
-#include "soft_body.h"
-#include "mesh.h"
+#include "vector.h"
 #include "collision_data.h"
+class SoftBody;
+class Mesh;
 
 
+/**
+ * @brief Interface for an immobile rigid body. Handles collision detection with
+ *        soft bodies.
+ */
 class RigidBody {
 protected:
   Vector centerOfMass;    // Position of the center of mass
@@ -21,10 +26,19 @@ public:
 };
 
 
-struct Quad;
+/**
+ * @brief Stores information about a quadrilateral face of a rigid body, which
+ *        should be planar. Vertex indices are expected to be given with
+ *        counterclockwise winding order.
+ */
+struct Quad {
+  int vertices[4];  // Indices of vertices in body's vertex list
+  Vector normal;    // Normal vector of face
+};
+
 
 /**
- * Immobile rigid body rectangular prism.
+ * @brief Immobile rigid body rectangular prism.
  */
 class RigidRectPrism : public RigidBody {
   Vector vertices[8];   // Positions of the prism's vertices
@@ -38,20 +52,11 @@ public:
   RigidRectPrism(const RigidRectPrism& rect);
   RigidRectPrism(const Vector& centerOfMass, float xLen, float zLen=0, float yLen=0,
                  float rotateAngle=0.0, const Vector& rotateAxis=Vector{0,0,1});
+  const Vector* getVertices() const;
+  const Quad* getFaces() const;
   Mesh buildMesh();
   std::vector<Collision*> detectCollisions(const SoftBody* softBody, const VecList& state,
                                            double tStart, double dt);
-};
-
-
-/**
- * Stores information about a quadrilateral face of a rigid body, which should
- * be planar. Vertex indices are expected to be given with counterclockwise
- * winding order.
- */
-struct Quad {
-  int vertices[4];  // Indices of vertices in body's vertex list
-  Vector normal;    // Normal vector of face
 };
 
 #endif

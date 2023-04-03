@@ -1,7 +1,13 @@
-#include "mesh.h"
+#define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
+#include "mesh.h"
+#include "soft_body.h"
 
+
+/*******************************************************************************
+ *  MESH
+ ******************************************************************************/
 
 Mesh::Mesh() {}
 
@@ -12,10 +18,9 @@ Mesh::Mesh(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, in
   setMaterial(material);
 }
 
-
 /**
- * @brief Calculates the normal vector of a triangle with the 3 given points.
- * @param normal Ouput array.
+ * @brief  Calculates the normal vector of a triangle with the 3 given points.
+ * @param  normal  Destination array.
  */
 void Mesh::triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloat p3[3]) {
   GLfloat u[3] = {p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2]};
@@ -29,15 +34,18 @@ void Mesh::triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloa
 
 
 /**
- * @brief Computes the normal vectors for a mesh.
- * @param normals Destination array.
- * @param vertices List of vertex coordinates.
- * @param indices List of Vertex indices.
- * @param numV Number of vertices.
- * @param numI Number of indices.
+ * @brief  Computes the normal vectors for a mesh.
+ *
+ * @param  normals   Destination array. Each entry should be initialized to 0.
+ * @param  vertices  Array of vertex coordinates.
+ * @param  indices   Array of Vertex indices.
+ * @param  numV      Number of vertices.
+ * @param  numI      Number of indices.
  */
-void Mesh::computeNormals(GLfloat* normals, GLfloat* vertices, GLuint* indices, int numV, int numI) {
-  int triangleCount[numV/3] = {0};
+void Mesh::computeNormals(GLfloat normals[], GLfloat vertices[], GLuint indices[],
+                          int numV, int numI)
+{
+  // int triangleCount[numV/3] = {0};
   for(int i=0; i<numI; i+=3) {
     int v1Index = 3*indices[i];
     int v2Index = 3*indices[i+1];
@@ -56,11 +64,12 @@ void Mesh::computeNormals(GLfloat* normals, GLfloat* vertices, GLuint* indices, 
     normals[v3Index]   += norm[0];
     normals[v3Index+1] += norm[1];
     normals[v3Index+2] += norm[2];
-    triangleCount[indices[i]]++;
-    triangleCount[indices[i+1]]++;
-    triangleCount[indices[i+2]]++;
+    // triangleCount[indices[i]]++;
+    // triangleCount[indices[i+1]]++;
+    // triangleCount[indices[i+2]]++;
   }
-  
+
+/*
   // Average and normalize normals
   for(int i=0; i<numV; i+=3) {
     normals[i]   /= triangleCount[indices[i/3]];
@@ -72,6 +81,7 @@ void Mesh::computeNormals(GLfloat* normals, GLfloat* vertices, GLuint* indices, 
     normals[i+1] /= len;
     normals[i+2] /= len;
   }
+*/
 }
 
 
@@ -111,8 +121,8 @@ void Mesh::setMaterial(const Material& material) {
 
 
 /**
- * @brief Sends the mesh's vertex data to OpenGL for displaying.
- * @param program Shader program.
+ * @brief  Sends the mesh's vertex data to OpenGL for displaying.
+ * @param  program  Shader program.
  */
 void Mesh::sendVertexData(GLuint program) {
   glBindBuffer(GL_ARRAY_BUFFER, vertexBuf);
@@ -125,13 +135,19 @@ void Mesh::sendVertexData(GLuint program) {
 }
 
 
-void Mesh::display(GLuint shaderProgram, const glm::mat4& viewPerspective) {
+/**
+ * @brief  Displays the mesh.
+ * 
+ * @param  shaderProgram   Shader program identifier.
+ * @param  viewProjection  viewProjection matrix from camera.
+ */
+void Mesh::display(GLuint shaderProgram, const glm::mat4& viewProjection) {
   sendVertexData(shaderProgram);
 
   // Set uniform variables
 	glBindBufferBase(GL_UNIFORM_BUFFER, 2, materialBuf);
-  int mvpLoc = glGetUniformLocation(shaderProgram, "modelViewPerspective");
-  glUniformMatrix4fv(mvpLoc, 1, 0, glm::value_ptr(viewPerspective));
+  int mvpLoc = glGetUniformLocation(shaderProgram, "modelViewProjection");
+  glUniformMatrix4fv(mvpLoc, 1, 0, glm::value_ptr(viewProjection));
 
   // Draw mesh
   glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuf);
@@ -140,44 +156,39 @@ void Mesh::display(GLuint shaderProgram, const glm::mat4& viewPerspective) {
 
 
 /*******************************************************************************
- *  SOFT CUBE MESH
+ *  SOFT BODY MESH
  ******************************************************************************/
 
-SoftCubeMesh::SoftCubeMesh() {}
+SoftBodyMesh::SoftBodyMesh() {}
 
-SoftCubeMesh::SoftCubeMesh(GLfloat vertices[], GLfloat normals[], GLuint indices[],
-                           std::vector<GLuint> duplicateVertexIndices,
+SoftBodyMesh::SoftBodyMesh(GLfloat vertices[], GLfloat normals[], GLuint indices[],
+                           const std::vector<GLuint>& massIndices,
                            int numV, int numI, const Material& material)
   : Mesh(vertices, normals, indices, numV, numI, material)
 {
   this->indices.assign(indices, indices + numI);
-  this->duplicateVertexIndices = duplicateVertexIndices;
+  this->massIndices = massIndices;
 }
 
-void SoftCubeMesh::bindCube(const SoftBody* cube) {
-  this->cube = cube;
+void SoftBodyMesh::bindBody(const SoftBody* body) {
+  this->body = body;
 }
 
-
-void SoftCubeMesh::update() {
+/**
+ * @brief Updates the mesh's vertex positions and recalculates the normal
+ *        vectors to match the state of the bound soft body.
+ */
+void SoftBodyMesh::update() {
+  int numV = 3 * massIndices.size();
 
   // Update vertex positions
-  const std::vector<Mass*>& masses = cube->getSurfaceMasses();
-  int numMasses = masses.size();
-  int numV = 3 * (numMasses + duplicateVertexIndices.size());
   GLfloat vertices[numV];
-  for(int i=0; i<numMasses; i++) {
-    Vector pos = masses[i]->getPos();
-    vertices[i*3]     = (float)pos[0];
-    vertices[i*3 + 1] = (float)pos[1];
-    vertices[i*3 + 2] = (float)pos[2];
-  }
-  for(int i=0; i<duplicateVertexIndices.size(); i++) {
-    Vector pos = masses[duplicateVertexIndices[i]]->getPos();
-    int vIndex = 3*(i + numMasses);
-    vertices[vIndex]   = (float)pos[0];
-    vertices[vIndex+1] = (float)pos[1];
-    vertices[vIndex+2] = (float)pos[2];
+  const std::vector<Mass*>& masses = body->getSurfaceMasses();
+  for(int i=0; i<massIndices.size(); i++) {
+    const Vector& state = masses[massIndices[i]]->getState();
+    vertices[3*i]   = (float)state[0];
+    vertices[3*i+1] = (float)state[1];
+    vertices[3*i+2] = (float)state[2];
   }
 
   // Update vertex normals
@@ -190,7 +201,7 @@ void SoftCubeMesh::update() {
 }
 
 
-void SoftCubeMesh::display(GLuint program, const glm::mat4& viewPerspective) {
+void SoftBodyMesh::display(GLuint program, const glm::mat4& viewPerspective) {
   update();
   Mesh::display(program, viewPerspective);
 }

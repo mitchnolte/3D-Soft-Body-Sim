@@ -3,17 +3,17 @@
 
 #include <unordered_map>
 #include <functional>
+#include <vector>
 #include "camera.h"
-#include "mesh.h"
-#include "simulation.h"
-#include "soft_body.h"
+class Mesh;
+class SoftBodyMesh;
+
 
 typedef std::function<void (glm::vec3)> KeyFn;
 typedef std::unordered_map<int, std::pair<KeyFn, KeyFn>> KeyBindings;
 
-
 /**
- * Uniform block for a light source.
+ * @brief Uniform block for a light source.
  */
 struct Light {
   GLfloat position[4];
@@ -21,14 +21,17 @@ struct Light {
 };
 
 
+/**
+ * @brief Handles the visualization of the simulation.
+ */
 class Renderer {
-  GLuint shaderProgram;
-  GLuint lightBuffer;
-  std::vector<Mesh*> meshes;
+  GLuint shaderProgram;             // Shader program identifier
+  GLuint lightBuffer;               // Light uniform block identifier
+  std::vector<Mesh*> meshes;        // Meshes to be rendered
   Camera camera;
   CameraController camController;
-  KeyBindings keyBindings;
-  float fps;
+  KeyBindings keyBindings;          // Binds keycode to key functions
+  float fps;                        // Frames per second
 
   void initializeCamController();
 
@@ -41,7 +44,7 @@ public:
   void initializeCamera(const glm::vec3& position, const glm::vec3& direction, float fov, 
                         float aspectRatio=1);
   void addMesh(const Mesh& mesh);
-  void addMesh(const SoftCubeMesh& mesh);
+  void addMesh(const SoftBodyMesh& mesh);
   void handleKeyInput(int key, int action);
   void display();
 };

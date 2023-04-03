@@ -16,8 +16,12 @@ void RK4solver::setODEfunction(ODEfn odeFunction) {
 }
 
 void RK4solver::setState(const Vector& state, double time) {
+  if(time >= 0.0) this->time = time;
   this->state = state;
-  this->time = time;
+}
+
+double RK4solver::getTime() const {
+  return time;
 }
 
 const Vector& RK4solver::getState() const {
@@ -25,29 +29,32 @@ const Vector& RK4solver::getState() const {
 }
 
 
-// const Vector& RK4solver::integrate(double time, int steps) {
-//   if(time <= this->time)
-//     return state;
-// 
-//   double t = this->time;
-//   double stepSize = (time - t) / steps;
-//   Vector k1, k2, k3, k4;
-// 
-//   for(int i=0; i<steps; i++) {
-//     k1 = stepSize * f(state, t);
-// 
-//     t += 0.5*stepSize;
-//     k2 = stepSize * f(state + 0.5*k1, t);
-//     k3 = stepSize * f(state + 0.5*k2, t);
-// 
-//     t += 0.5*stepSize;
-//     k4 = stepSize * f(state + k3, t);
-// 
-//     state += 0.16666667*(k1 + 2*(k2 + k3) + k4);
-//   }
-// 
-//   return state;
-// }
+const Vector& RK4solver::integrate(double time, int steps) {
+  if(time <= this->time)
+    return state;
+
+  double t = this->time;
+  double stepSize = (time - t) / steps;
+  double halfStep = 0.5 * stepSize;
+
+  int stateSize = state.size();
+  Vector k1(stateSize), k2(stateSize), k3(stateSize), k4(stateSize);
+
+  for(int i=0; i<steps; i++) {
+    f(k1, state, t);
+
+    t += halfStep;
+    f(k2, state + halfStep*k1, t);
+    f(k3, state + halfStep*k2, t);
+
+    t += halfStep;
+    f(k4, state + stepSize*k3, t);
+
+    state += stepSize * (1.0/6.0) * (k1 + 2*(k2 + k3) + k4);
+  }
+
+  return state;
+}
 
 
 /*******************************************************************************
@@ -73,8 +80,8 @@ void MultiStateRK4solver::setODEfunction(MultiStateODEfn odeFunction) {
 }
 
 void MultiStateRK4solver::setState(const VecList& state, double time) {
+  if(time >= 0.0) this->time = time;
   this->state = state;
-  this->time = time;
 
   if(k1.size() != state.size() || k1[0].size() != state[0].size()) {
     this->k1 = VecList(state.size(), Vector(state[0].size()));
@@ -82,6 +89,10 @@ void MultiStateRK4solver::setState(const VecList& state, double time) {
     this->k3 = VecList(state.size(), Vector(state[0].size()));
     this->k4 = VecList(state.size(), Vector(state[0].size()));
   }
+}
+
+double MultiStateRK4solver::getTime() const {
+  return time;
 }
 
 const VecList& MultiStateRK4solver::getState() const {

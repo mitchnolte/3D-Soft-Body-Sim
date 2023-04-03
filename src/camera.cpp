@@ -32,7 +32,10 @@ const glm::vec3& Camera::getPosition() {
   return position;
 }
 
-glm::mat4 Camera::getViewPerspective() const {
+/**
+ * @brief Returns the projection matrix multiplied by the view matrix.
+ */
+glm::mat4 Camera::getViewProjection() const {
   return projection * glm::lookAt(position, position+direction, glm::vec3(0.0f, 0.0f, 1.0f));
 }
 

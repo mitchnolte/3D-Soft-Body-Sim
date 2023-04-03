@@ -5,9 +5,12 @@
 #include <glm/glm.hpp>
 
 
+/**
+ * @brief Controls the view of the simulation.
+ */
 class Camera {
-  glm::vec3 position;     // Camera position
-  glm::vec3 direction;    // Direction camera is looking
+  glm::vec3 position;     // Camera position in world space
+  glm::vec3 direction;    // Direction camera is facing in world space
   glm::mat4 projection;   // Projection matrix
   float fov;              // Field of view
 
@@ -18,12 +21,15 @@ public:
   void setDirection(const glm::vec3& direction);
   void setPerspective(float aspectRatio, float fov=0.0);
   const glm::vec3& getPosition();
-  glm::mat4 getViewPerspective() const; 
+  glm::mat4 getViewProjection() const; 
 
   friend class CameraController;
 };
 
 
+/**
+ * @brief Controls the movement and rotation of the camera.
+ */
 class CameraController {
   Camera* camera;
   glm::vec3 moveDirection;

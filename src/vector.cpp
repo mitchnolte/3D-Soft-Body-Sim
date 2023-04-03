@@ -9,12 +9,14 @@ Vector vecCross(const Vector& u, const Vector& v) {
 }
 
 /**
- * @brief Matrix-vector multiplication. 
- * @param M 4x4 matrix.
- * @param v 3 or 4 element vector.
- * @param w The 4th element of the vector used in the multiplication if the
- *          given vector is of length 3. Defaults to 0 and isn't used if the
- *          given vector already has 4 elements.
+ * @brief  Matrix-vector multiplication. 
+ *
+ * @param  M  4x4 matrix.
+ * @param  v  Vector with 3 or 4 elements.
+ * @param  w  The 4th element of the vector used in the multiplication if the
+ *            given vector is of length 3. Defaults to 0 and isn't used if the
+ *            given vector already has 4 elements.
+ *
  * @return Result of multiplication or the original vector if it has less than 3
  *         or greater than 4 elements.
  */

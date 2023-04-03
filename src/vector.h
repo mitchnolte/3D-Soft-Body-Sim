@@ -6,8 +6,8 @@
 #include <glm/glm.hpp>
 
 // Types
-typedef std::valarray<double>     Vector;    // Vector for physics calculations
-typedef std::vector<Vector>       VecList;   // List of physics vectors
+typedef std::valarray<double>  Vector;    // Vector for physics calculations
+typedef std::vector<Vector>    VecList;   // List of physics vectors
 
 
 // Vector operations

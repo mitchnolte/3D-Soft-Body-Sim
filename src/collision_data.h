@@ -2,16 +2,16 @@
 #define COLLISION_DATA_H
 
 /**
- * Specifies a type of collision, for example a collision between a soft body
- * and a rigid rectangular prism. The two object types in the collision are
- * separated by an "_" in the enum constant name.
+ * @brief Specifies a type of collision, for example a collision between a soft
+ *        body and a rigid rectangular prism. The two object types in the
+ *        collision are separated by an "_" in the enum constant name.
  */
 enum class CollType {
   soft_rigidRectPrism
 };
 
 /**
- * Stores information about a collision.
+ * @brief Stores information about a collision.
  */
 struct Collision {
   CollType type;  // Type of collision
@@ -19,8 +19,8 @@ struct Collision {
 };
 
 /**
- * Soft-rigid body collision; stores information about a collision between a
- * single point mass of a soft body and rigid body.
+ * @brief Soft-rigid body collision; stores information about a collision
+ *        between a single point mass of a soft body and rigid body.
  */
 struct S_R_Coll : Collision {
   int softBody;   // Index of soft body in simulation's soft body list
@@ -29,9 +29,9 @@ struct S_R_Coll : Collision {
 };
 
 /**
- * Soft-body / rigid-rectangular-prism collision; stores information about a
- * collision between a single point mass of a soft body and a face of a rigid
- * rectangular prism.
+ * @brief Soft-body / rigid-rectangular-prism collision; stores information
+ *        about a collision between a single point mass of a soft body and a
+ *        face of a rigid rectangular prism.
  */
 struct S_RRP_Coll : S_R_Coll {
   int face;       // Index of the face in the rigid body's face list

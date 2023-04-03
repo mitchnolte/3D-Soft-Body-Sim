@@ -4,11 +4,16 @@
 #include <GL/glew.h>
 #include "vector.h"
 #include "rk4_solver.h"
+class RigidRectPrism;
 
 class Mass;
 class Spring;
 
 
+/**
+ * @brief Interface for a soft body. Implementations define the shape of the
+ *        mass-spring structure.
+ */
 class SoftBody {
 protected:
   std::vector<Mass> masses;
@@ -21,35 +26,33 @@ protected:
   double friction;                      // Friction coefficient
   double boundingRadius;                // Radius of bounding sphere for collision detection
 
+
+  void initSolver(const VecList& state=VecList());
+  void initSurfaceMasses();
+
 public:
   SoftBody();
   SoftBody(const SoftBody& softBody);
   SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-           const std::vector<int>& surfaceMassIndices, double boundingRadius, double mass,
-           double massRadii, double friction);
+           const std::vector<int>& surfaceMassIndices, double boundingRadius,
+           double mass, double massRadii, double friction);
+  void getState(VecList& state) const;
   const std::vector<Mass*>& getSurfaceMasses() const;
   double getBoundingRadius() const;
+  void ode(VecList& rates, const VecList& states, double time) const;
+  void handleCollision(double tStart, double tColl, const RigidRectPrism* rigidBody,
+                       int massIndex, int faceIndex);
+
   const VecList& calculateUpdatedState(double time, int RK4iterations);
   void update(const VecList& states);
-  void ode(VecList& rates, const VecList& states, double time) const;
 
   virtual Vector getCenterOfMass() = 0;
 };
 
 
-class SoftCube : public SoftBody {
-  int cornerMasses[8];  // Indices of corner masses
-
-public:
-  SoftCube();
-  SoftCube(const SoftCube& cube);
-  SoftCube(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-           const std::vector<int>& surfaceMassIndices, int cornerMassIndices[8],
-           double boundingRadius, double mass=1, double massRadii=1, double friction=0.0);
-  Vector getCenterOfMass();
-};
-
-
+/**
+ * @brief Point mass used in the mass-spring structure of a soft body.
+ */
 class Mass {
   Vector state;    // Current state of mass; updated at end of time step
 
@@ -65,6 +68,10 @@ public:
 };
 
 
+/**
+ * @brief Spring used in the mass-spring structure of a soft body. Responsible
+ *        for calculating the force on the point masses connected to either end.
+ */
 class Spring {
   std::pair<int, int> masses; // Indices of connected masses in soft body mass list
   double k;                   // Spring coefficient

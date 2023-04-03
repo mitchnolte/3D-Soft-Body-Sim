@@ -1,4 +1,5 @@
 #include "soft_body.h"
+#include "rigid_body.h"
 
 
 /*******************************************************************************
@@ -17,14 +18,23 @@ SoftBody::SoftBody(const SoftBody& softBody) {
   boundingRadius = softBody.boundingRadius;
 
   surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
-  for(int i=0; i<surfaceMasses.size(); i++)
-    surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
-  
-  using namespace std::placeholders;
   solver = softBody.solver;
-  solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
+  initSurfaceMasses();
+  initSolver();
 }
 
+
+/**
+ * @brief  Soft body constructor.
+ * 
+ * @param  masses              Point masses in the mass-spring structure.
+ * @param  springs             Springs holding the masses together.
+ * @param  surfaceMassIndices  Indices of the masses on the surface of the body.
+ * @param  boundingRadius      Radius of the bounding sphere for collision.
+ * @param  mass                Mass of the soft body.
+ * @param  massRadii           Radius of point masses; for internal collision.
+ * @param  friction            Damping coefficient for extra stabilizing force.
+ */
 SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
                    const std::vector<int>& surfaceMassIndices, double boundingRadius, double mass,
                    double massRadii, double friction)
@@ -37,16 +47,34 @@ SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& s
   this->massRadii = massRadii;
   this->friction = friction;
   this->surfaceMasses = std::vector<Mass*>(surfaceMassIndices.size());
-  for(int i=0; i<surfaceMasses.size(); i++)
-    surfaceMasses[i] = &this->masses[surfaceMassIndices[i]];
+  initSurfaceMasses();
 
   VecList state(masses.size());
-  for(int i=0; i<masses.size(); i++)
-    state[i] = masses[i].getState();
+  getState(state);
+  initSolver(state);
+}
+
+
+void SoftBody::initSolver(const VecList& state) {
+  if(state.size() != 0)
+    solver.setState(state);
 
   using namespace std::placeholders;
   solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
-  solver.setState(state);
+}
+
+void SoftBody::initSurfaceMasses() {
+  for(int i=0; i<surfaceMasses.size(); i++)
+    surfaceMasses[i] = &masses[surfaceMassIndices[i]];
+}
+
+/**
+ * @brief  Copies the state from each mass.
+ * @param  state  Destination VecList.
+ */
+void SoftBody::getState(VecList& state) const {
+  for(int i=0; i<masses.size(); i++)
+    state[i] = masses[i].getState();
 }
 
 const std::vector<Mass*>& SoftBody::getSurfaceMasses() const {
@@ -57,30 +85,15 @@ double SoftBody::getBoundingRadius() const {
   return boundingRadius;
 }
 
-/**
- * @brief Calculates the updated state of the soft body at the given time using
- *        the given number of RK4iterations.
- */
-const VecList& SoftBody::calculateUpdatedState(double time, int RK4iterations) {
-  return solver.integrate(time, RK4iterations);
-}
-
-/**
- * @brief Sets the state of each mass in the soft body.
- * @param states Updated states.
- */
-void SoftBody::update(const VecList& states) {
-  for(int i=0; i<masses.size(); i++)
-    masses[i].update(states[i]);
-}
 
 /**
  * @brief Set of ordinary differential equations that control the state of the
  *        soft body. Meant to be used by a MultiStateRK4solver object.
- * @param rates Destination array that's populated with a dState/dt vector for
- *              each state vector in the given list.
- * @param states List of states calculated from the previous iteration.
- * @param time Time which the ODEs are integrated up to.
+ *
+ * @param  rates   Destination VecList that's populated with a dState/dt vector
+ *                 for each state vector in the given list.
+ * @param  states  List of states calculated from the previous iteration.
+ * @param  time    Time which the ODEs are integrated up to.
  */
 void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
   for(int i=0; i<states.size(); i++)                               // Change in position
@@ -90,42 +103,46 @@ void SoftBody::ode(VecList& rates, const VecList& states, double time) const {
     const std::pair<int, int>& sMasses = spring.getMassIndices();
     Vector force = spring.calculateForce(states[sMasses.first], states[sMasses.second], massRadii);
 
-    // Spring force + additional friction to stabilize structure
+    // Spring force plus additional friction to stabilize structure
     rates[sMasses.first][Mass::VEL]  += force - friction*states[sMasses.first][Mass::VEL];
     rates[sMasses.second][Mass::VEL] -= force + friction*states[sMasses.second][Mass::VEL];
   }
 }
 
 
-/*******************************************************************************
- *  SOFT CUBE
- ******************************************************************************/
+void SoftBody::handleCollision(double tStart, double tColl, const RigidRectPrism* rigidBody,
+                               int massIndex, int faceIndex)
+{
+  double tEnd = solver.getTime();
+  VecList stateStart(masses.size());
+  getState(stateStart);
+  solver.setState(stateStart, tStart);
 
-SoftCube::SoftCube() {}
+  const Quad&   face       = rigidBody->getFaces()[faceIndex];
+  const Vector& faceNormal = face.normal;
+  const Vector& facePoint  = rigidBody->getVertices()[face.vertices[0]];
 
-SoftCube::SoftCube(const SoftCube& cube) : SoftBody(cube) {
-  for(int i=0; i<8; i++)
-    cornerMasses[i] = cube.cornerMasses[i];
+  const VecList& state     = solver.integrate(tColl);
+  const Vector&  direction = state[massIndex][Mass::POS] - facePoint;
+  double         distance  = vecDot(direction, faceNormal);
 }
 
-SoftCube::SoftCube(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-                   const std::vector<int>& surfaceMassIndices, int cornerMassIndices[8],
-                   double boundingRadius, double mass, double massRadii, double friction)
-  : SoftBody(masses, springs, surfaceMassIndices, boundingRadius, mass, massRadii, friction)
-{
-  for(int i=0; i<8; i++)
-    cornerMasses[i] = cornerMassIndices[i];
+
+/**
+ * @brief Calculates the updated state of the soft body at the given time using
+ *        the given number of RK4iterations.
+ */
+const VecList& SoftBody::calculateUpdatedState(double time, int RK4iterations) {
+  return solver.integrate(time, RK4iterations);
 }
 
 /**
- * @brief Approximates the cube's center of mass by calculating the average
- *        position of the 8 masses located on one of the cube's corners.
+ * @brief  Sets the state of each mass in the soft body.
+ * @param  states  Updated states.
  */
-Vector SoftCube::getCenterOfMass() {
-  return (masses[cornerMasses[0]].getPos() + masses[cornerMasses[1]].getPos() +
-          masses[cornerMasses[2]].getPos() + masses[cornerMasses[3]].getPos() +
-          masses[cornerMasses[4]].getPos() + masses[cornerMasses[5]].getPos() +
-          masses[cornerMasses[6]].getPos() + masses[cornerMasses[7]].getPos()) / 8;
+void SoftBody::update(const VecList& states) {
+  for(int i=0; i<masses.size(); i++)
+    masses[i].update(states[i]);
 }
 
 
@@ -176,10 +193,13 @@ const std::pair<int, int>& Spring::getMassIndices() const {
 
 
 /**
- * @brief Calculates the force exerted on the masses on either end of the
- *        spring.
- * @param m1State State of the first mass attached to the spring.
- * @param m2State State of the second mass attached to the spring.
+ * @brief  Calculates the force exerted on the masses on either end of the
+ *         spring.
+ *
+ * @param  m1State    State of the first mass attached to the spring.
+ * @param  m2State    State of the second mass attached to the spring.
+ * @param  massRadii  Radius of the masses for collision detection.
+ *
  * @return The force exerted on the masses.
  */
 Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State, double massRadii) const {

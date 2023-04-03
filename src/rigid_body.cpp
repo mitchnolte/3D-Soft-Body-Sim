@@ -1,7 +1,9 @@
-#include "rigid_body.h"
 #define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include "rigid_body.h"
+#include "soft_body.h"
+#include "mesh.h"
 
 
 const Vector& RigidBody::getCenterOfMass() const {
@@ -35,13 +37,14 @@ RigidRectPrism::RigidRectPrism(const RigidRectPrism& rect) {
 
 
 /**
- * @brief Rigid rectangular prism constructor.
- * @param centerOfMass Position of the center of mass (in world coordinates).
- * @param xLen X-axis side length.
- * @param zLen Z-axis side length. Defaults to x-axis length.
- * @param yLen Y-axis side length. Defaults to x-axis length.
- * @param rotateAngle Rotation angle for orientation in radians.
- * @param rotateAxis Rotation axis for orientation.
+ * @brief  Rigid rectangular prism constructor.
+ *
+ * @param  centerOfMass  Position of the center of mass (in world coordinates).
+ * @param  xLen          X-axis side length.
+ * @param  zLen          Z-axis side length. Defaults to x-axis length.
+ * @param  yLen          Y-axis side length. Defaults to x-axis length.
+ * @param  rotateAngle   Rotation angle for orientation in radians.
+ * @param  rotateAxis    Rotation axis for orientation.
  */
 RigidRectPrism::RigidRectPrism(const Vector& centerOfMass, float xLen, float zLen, float yLen,
                                float rotateAngle, const Vector& rotateAxis)
@@ -89,12 +92,21 @@ RigidRectPrism::RigidRectPrism(const Vector& centerOfMass, float xLen, float zLe
 }
 
 
+const Vector* RigidRectPrism::getVertices() const {
+  return vertices;
+}
+
+const Quad* RigidRectPrism::getFaces() const {
+  return faces;
+}
+
+
 /**
  * @brief Builds a display mesh to represent the prism.
  */
 Mesh RigidRectPrism::buildMesh() {
-  int numV = 72;  // 6 faces * 4 vertices per face * 3 coordinates per vertex
-  int numI = 36;  // 6 faces * 2 triangles per face * 3 indices per triangle
+  int numV = 72;    // 6 faces * 4 vertices per face * 3 coordinates per vertex
+  int numI = 36;    // 6 faces * 2 triangles per face * 3 indices per triangle
   GLfloat meshVertices[numV];
   GLfloat meshNormals[numV];
   GLuint  meshIndices[numI];
@@ -131,15 +143,19 @@ Mesh RigidRectPrism::buildMesh() {
 
 
 /**
- * @brief Calculates the signed distance from a point to each face of the prism.
- *        If colliding is true, the function will end the first time the point
- *        is determined to be on the outer side of a face and will return a
- *        std::vector with only -1 in it. If colliding is false, the function
- *        will instead return the indices of the faces the point is on the outer
- *        side of.
- * @param distances Destination array.
- * @param point The point.
- * @param colliding Whether the point must be colliding with the prism or not.
+ * @brief  Calculates the signed distance from a point to each face of the
+ *         prism. If colliding is true, the function will end the first time the
+ *         point is determined to be on the outer side of a face and will return
+ *         a std::vector with only -1 in it. If colliding is false, the function
+ *         will instead return the indices of the faces the point is on the
+ *         outer side of.
+ *
+ * @param  distances  Destination array. The value at a given index is set to
+ *                    the distance from the face at the same index of the face
+ *                    array.
+ * @param  point      The point.
+ * @param  colliding  Whether the point must be colliding with the prism or not.
+ *
  * @return std::vector containing indices of faces that the point is on the
  *         outer side of or -1 if the point must be colliding but isn't.
  */
@@ -154,7 +170,8 @@ std::vector<int> RigidRectPrism::distanceFromFaces(double distances[6], const Ve
   for(int i=0; i<6; i++) {
     distances[i] = vecDot(direction[i&1], faces[i].normal);   // Bitwise & to determine if i is even
     if(distances[i] > 0) {
-      if(colliding)                 return noCollisionFaces;
+      if(colliding) return noCollisionFaces;
+
       if(noCollisionFaces[0] == -1) noCollisionFaces[0] = i;
       else                          noCollisionFaces.push_back(i);
 
@@ -166,11 +183,13 @@ std::vector<int> RigidRectPrism::distanceFromFaces(double distances[6], const Ve
 
 
 /**
- * @brief Calculates the point where a line segment intersects with a plane.
- * @param posA Starting position of the line segment.
- * @param posB Ending position of the line segment.
- * @param distA Signed distance from posA to the plane.
- * @param distB Signed distance from posB to the plane.
+ * @brief  Calculates the point where a line segment intersects with a plane.
+ *
+ * @param  posA   Starting position of the line segment.
+ * @param  posB   Ending position of the line segment.
+ * @param  distA  Signed distance from posA to the plane.
+ * @param  distB  Signed distance from posB to the plane.
+ * 
  * @return Intersection point.
  */
 Vector RigidRectPrism::planeIntersection(const Vector& posA, const Vector& posB,
@@ -181,12 +200,14 @@ Vector RigidRectPrism::planeIntersection(const Vector& posA, const Vector& posB,
 
 
 /**
- * @brief Checks every surface mass in the given soft body for collision with
- *        the prism.
- * @param softBody Pointer to the soft body.
- * @param state State of the soft body at the end of the update step.
- * @param tStart Starting time of update step.
- * @param dt Duration of update step.
+ * @brief  Checks every surface mass in the given soft body for collision with
+ *         the prism.
+ *
+ * @param  softBody  Pointer to the soft body.
+ * @param  state     State of the soft body at the end of the update step.
+ * @param  tStart    Starting time of update step.
+ * @param  dt        Duration of update step.
+ *
  * @return List of collision data structs in an arbitrary order. Soft and rigid
  *         body indices are not initialized.
  */
@@ -214,7 +235,7 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
     int face = possibleFaces[0];
     Vector approxCollPoint = planeIntersection(posStart, posEnd, distStart[face], distEnd[face]);
 
-    // If multiple possible points, find a point that is in a face
+    // If multiple possible points, find a point that is within a face
     // (with 2D equivalent of RigidRectPrism::distanceFromFaces with mandatory collision)
     if(possibleFaces.size() > 1) {
       for(int i=1; i<possibleFaces.size(); i++) {

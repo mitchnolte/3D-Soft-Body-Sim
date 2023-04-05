@@ -16,6 +16,7 @@ enum class CollType {
 struct Collision {
   CollType type;  // Type of collision
   double   time;  // Time of collision
+  double   e;     // Elasticity of collision.
 };
 
 /**

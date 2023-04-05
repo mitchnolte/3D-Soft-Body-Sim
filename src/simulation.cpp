@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <set>
 #include "simulation.h"
 #include "soft_body.h"
 #include "soft_cube.h"
@@ -30,21 +31,21 @@ void addCollisions(std::vector<Collision*>& colls, const std::vector<Collision*>
  * @brief  Simulation constructor.
  *
  * @param  dt                   Time between each update.
+ * @param  collisionTolerance   Error tolerance for collision distance.
  * @param  iterationsPerUpdate  Number of RK4 iterations per update.
  */
-Simulation::Simulation(double dt, int iterationsPerUpdate) {
-  this->time = 0;
+Simulation::Simulation(double dt, double collisionTolerance, int iterationsPerUpdate) {
   this->dt = dt;
+  this->time = 0;
+  this->collisionTolerance = collisionTolerance;
   this->iterationsPerUpdate = iterationsPerUpdate;
 }
 
 Simulation::~Simulation() {
-  for(int i=0; i<softBodies.size(); i++) {
+  for(int i=0; i<softBodies.size(); i++)
     delete softBodies[i];
-  }
-  for(int i=0; i<rigidBodies.size(); i++) {
+  for(int i=0; i<rigidBodies.size(); i++)
     delete rigidBodies[i];
-  }
 }
 
 void Simulation::addBody(const SoftCube& body) {
@@ -83,35 +84,60 @@ void Simulation::update() {
       {
         // Full collision test
         addCollisions(collisions,
-               rigidBodies[j]->detectCollisions(softBodies[i], *sbStates[i], time, dt), i, j);
+                      rigidBodies[j]->detectCollisions(softBodies[i], *sbStates[i], time, dt), i, j);
       }
     }
   }
 
   // Collision response
   if(collisions.size() > 0) {
-    
+
     // Sort collisions by time
     std::sort(collisions.begin(), collisions.end(), [](Collision* a, Collision* b) {
       return a->time < b->time;
     });
 
-    handleCollisions(collisions, sbStates);
+    handleCollisions(collisions, tEnd);
     for(int i=0; i<collisions.size(); i++)
       delete collisions[i];
   }
 
   // Update soft bodies
   for(int i=0; i<softBodies.size(); i++)
-    softBodies[i]->update(*sbStates[i]);
+    softBodies[i]->flushStateBuffer();
   time = tEnd;
 }
 
 
-void Simulation::handleCollisions(std::vector<Collision*>& collisions,
-                                  std::vector<const VecList*>& sbStates)
-{
+void Simulation::handleCollisions(std::vector<Collision*>& collisions, double tEnd) {
+  std::set<int> collidingSoftBodies;
   for(int i=0; i<collisions.size(); i++) {
-    
+    switch(collisions[i]->type) {
+
+    case CollType::soft_rigidRectPrism:
+      S_RRP_Coll& coll = *(S_RRP_Coll*)collisions[i];
+
+      // Revert soft body to previous state
+      if(collidingSoftBodies.count(coll.softBody) == 0) {
+        softBodies[coll.softBody]->resetStateBuffer();
+        collidingSoftBodies.insert(coll.softBody);
+      }
+
+      softBodies[coll.softBody]->handleCollision(coll.time, tEnd,
+                                                 (RigidRectPrism*)rigidBodies[coll.rigidBody], 
+                                                 coll.mass, coll.face, coll.e, collisionTolerance);
+      break;
+    }
   }
+
+  // Advance soft bodies back up to current time
+  for(int i : collidingSoftBodies) {
+    softBodies[i]->calculateUpdatedState(tEnd, 1);
+  }
+
+
+
+
+
+  // printf("\n");
 }

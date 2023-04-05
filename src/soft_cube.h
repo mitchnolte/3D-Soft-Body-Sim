@@ -57,12 +57,17 @@ class SoftCube : public SoftBody {
   void getMeshIndices(std::vector<GLuint>& indices, std::vector<GLuint>& massIndices,
                       std::vector<GLfloat>& vertices, const CubeCellGrid& cells, int cellsPerAxis);
 
+  void duplicateVertex(std::vector<GLfloat>& vertices, std::vector<GLuint>& indices,
+                       std::vector<GLuint>& massIndices, GLuint i);
+
+  void approximateCOM(const VecList& state); 
+
 public:
-  SoftCube(double mass=1, double friction=0.0);
+  SoftCube(double mass=1);
   SoftCube(const SoftCube& cube);
   SoftBodyMesh buildStructure(const Vector& position=Vector(3), double size=1, int cellsPerAxis=3,
                               double k=10, double c=0.2, const Material& material={{1,0,0,1}, 1});
-  Vector getCenterOfMass();
+  const Vector& getCenterOfMass() const;
 };
 
 #endif

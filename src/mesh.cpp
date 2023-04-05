@@ -183,9 +183,9 @@ void SoftBodyMesh::update() {
 
   // Update vertex positions
   GLfloat vertices[numV];
-  const std::vector<Mass*>& masses = body->getSurfaceMasses();
+  const std::vector<Mass>& masses = body->getMasses();
   for(int i=0; i<massIndices.size(); i++) {
-    const Vector& state = masses[massIndices[i]]->getState();
+    const Vector& state = masses[massIndices[i]].getState();
     vertices[3*i]   = (float)state[0];
     vertices[3*i+1] = (float)state[1];
     vertices[3*i+2] = (float)state[2];

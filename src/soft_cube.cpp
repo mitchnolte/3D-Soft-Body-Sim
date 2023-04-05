@@ -4,13 +4,10 @@
 
 /**
  * @brief  Soft body cube constructor.
- * 
- * @param  mass      Mass of the cube.
- * @param  friction  Extra friction coefficient used to stabilize structure.
+ * @param  mass  Mass of the cube.
  */
-SoftCube::SoftCube(double mass, double friction) {
+SoftCube::SoftCube(double mass) : SoftBody() {
   this->mass = mass;
-  this->friction = friction;
 }
 
 SoftCube::SoftCube(const SoftCube& cube) : SoftBody(cube) {
@@ -18,15 +15,21 @@ SoftCube::SoftCube(const SoftCube& cube) : SoftBody(cube) {
     cornerMasses[i] = cube.cornerMasses[i];
 }
 
+const Vector& SoftCube::getCenterOfMass() const {
+  return centerOfMass;
+}
+
 /**
- * @brief Approximates the cube's center of mass by calculating the average
- *        position of the 8 masses located on one of the cube's corners.
+ * @brief  Approximates the cube's center of mass by calculating the average
+ *         position of the 8 vertex masses.
+ *
+ * @param  state  State used to calculate the center of mass.
  */
-Vector SoftCube::getCenterOfMass() {
-  return (masses[cornerMasses[0]].getPos() + masses[cornerMasses[1]].getPos() +
-          masses[cornerMasses[2]].getPos() + masses[cornerMasses[3]].getPos() +
-          masses[cornerMasses[4]].getPos() + masses[cornerMasses[5]].getPos() +
-          masses[cornerMasses[6]].getPos() + masses[cornerMasses[7]].getPos()) / 8;
+void SoftCube::approximateCOM(const VecList& state) {
+  centerOfMass = (state[cornerMasses[0]][Mass::POS] + state[cornerMasses[1]][Mass::POS] +
+                  state[cornerMasses[2]][Mass::POS] + state[cornerMasses[3]][Mass::POS] +
+                  state[cornerMasses[4]][Mass::POS] + state[cornerMasses[5]][Mass::POS] +
+                  state[cornerMasses[6]][Mass::POS] + state[cornerMasses[7]][Mass::POS]) / 8;
 }
 
 
@@ -38,13 +41,23 @@ GLuint indexOf(const std::vector<int>& v, GLuint i) {
   return std::distance(v.begin(), std::find(v.begin(), v.end(), i));
 }
 
-void duplicateVertex(std::vector<GLfloat>& vertices, std::vector<GLuint>& indices,
-                     std::vector<GLuint>& massIndices, GLuint i)
+/**
+ * @brief  Duplicates a vertex in the vertex list to ensure edge vertices have
+ *         separate normal vectors for each face they're a part of and updates
+ *         the mass and vertex index lists to reflect the change.
+ *
+ * @param  vertices     List of display mesh vertex positions.
+ * @param  indices      Vertex indices for display mesh.
+ * @param  massIndices  Indices of masses that correspond to mesh vertices.
+ * @param  i            Index of the vertex in the indices list to duplicate.
+ */
+void SoftCube::duplicateVertex(std::vector<GLfloat>& vertices, std::vector<GLuint>& indices,
+                               std::vector<GLuint>& massIndices, GLuint i)
 {
-  vertices.push_back(vertices[3*indices[i]]);
-  vertices.push_back(vertices[3*indices[i] + 1]);
-  vertices.push_back(vertices[3*indices[i] + 2]);
-  massIndices.push_back(indices[i]);
+  massIndices.push_back(surfaceMasses[indices[i]]);
+  vertices.insert(vertices.end(), {vertices[3*indices[i]],
+                                   vertices[3*indices[i] + 1],
+                                   vertices[3*indices[i] + 2]});
   indices[i] = vertices.size()/3 - 1;
 }
 
@@ -76,19 +89,12 @@ void SoftCube::getMeshIndices(std::vector<GLuint>& indices, std::vector<GLuint>&
                                      cell->hhh, cell->hll, cell->hlh});
 
       cell = &cells[cellsPerAxis][y][z];
-      indices.push_back(indexOf(surfaceMassIndices, cell->hhh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hll));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hhl));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hlh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hll));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hhh));
-
-      // indices.insert(indices.end(), {indexOf(surfaceMassIndices, cell->hhh),
-      //                                indexOf(surfaceMassIndices, cell->hll),
-      //                                indexOf(surfaceMassIndices, cell->hhl),
-      //                                indexOf(surfaceMassIndices, cell->hlh),
-      //                                indexOf(surfaceMassIndices, cell->hll),
-      //                                indexOf(surfaceMassIndices, cell->hhh)});
+      indices.insert(indices.end(), {indexOf(surfaceMasses, cell->hhh),
+                                     indexOf(surfaceMasses, cell->hll),
+                                     indexOf(surfaceMasses, cell->hhl),
+                                     indexOf(surfaceMasses, cell->hlh),
+                                     indexOf(surfaceMasses, cell->hll),
+                                     indexOf(surfaceMasses, cell->hhh)});
     }
   }
 
@@ -100,12 +106,12 @@ void SoftCube::getMeshIndices(std::vector<GLuint>& indices, std::vector<GLuint>&
                                      cell->lhh, cell->hhl, cell->hhh});
 
       cell = &cells[x][cellsPerAxis][z];
-      indices.push_back(indexOf(surfaceMassIndices, cell->lhh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hhl));
-      indices.push_back(indexOf(surfaceMassIndices, cell->lhl));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hhh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hhl));
-      indices.push_back(indexOf(surfaceMassIndices, cell->lhh));
+      indices.insert(indices.end(), {indexOf(surfaceMasses, cell->lhh),
+                                     indexOf(surfaceMasses, cell->hhl),
+                                     indexOf(surfaceMasses, cell->lhl),
+                                     indexOf(surfaceMasses, cell->hhh),
+                                     indexOf(surfaceMasses, cell->hhl),
+                                     indexOf(surfaceMasses, cell->lhh)});
 
       // Duplicate edge vertices so they have separate normals on each side for lighting
       int i = indices.size() - 1;
@@ -148,12 +154,12 @@ void SoftCube::getMeshIndices(std::vector<GLuint>& indices, std::vector<GLuint>&
                                      cell->hlh, cell->lhh, cell->hhh});
 
       cell = &cells[x][y][cellsPerAxis];
-      indices.push_back(indexOf(surfaceMassIndices, cell->hlh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->lhh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->llh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hhh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->lhh));
-      indices.push_back(indexOf(surfaceMassIndices, cell->hlh));
+      indices.insert(indices.end(), {indexOf(surfaceMasses, cell->hlh),
+                                     indexOf(surfaceMasses, cell->lhh),
+                                     indexOf(surfaceMasses, cell->llh),
+                                     indexOf(surfaceMasses, cell->hhh),
+                                     indexOf(surfaceMasses, cell->lhh),
+                                     indexOf(surfaceMasses, cell->hlh)});
 
       // Duplicate edge vertices so they have separate normals on each side for lighting
       int i = indices.size() - 1;
@@ -231,9 +237,9 @@ SoftBodyMesh SoftCube::buildMesh(const CubeCellGrid& cells, int cellsPerAxis,
   std::vector<GLuint> massIndices;
 
   for(int i=0; i<surfaceMasses.size(); i++) {
-    const Vector& state = masses[i].getState();
+    const Vector& state = masses[surfaceMasses[i]].getState();
     vertices.insert(vertices.end(), {(float)state[0], (float)state[1], (float)state[2]});
-    massIndices.push_back(i);
+    massIndices.push_back(surfaceMasses[i]);
   }
 
   // Get vertex and mass indices
@@ -338,6 +344,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     }
   }
 
+
   /**
    * Create temporary cells with surface masses for edge cases
    */
@@ -347,22 +354,22 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   Vector massPos = firstCellCenter - halfCell;
   masses.emplace_back(massPos);
   cell->llh = masses.size()-1;
-  surfaceMassIndices.push_back(cell->llh);
+  surfaceMasses.push_back(cell->llh);
 
   massPos[1] += cellSize;
   masses.emplace_back(massPos);
   cell->lhh = masses.size()-1;
-  surfaceMassIndices.push_back(cell->lhh);
+  surfaceMasses.push_back(cell->lhh);
 
   massPos += Vector{cellSize, -cellSize, 0};
   masses.emplace_back(massPos);
   cell->hlh = masses.size()-1;
-  surfaceMassIndices.push_back(cell->hlh);
+  surfaceMasses.push_back(cell->hlh);
 
   massPos[1] += cellSize;
   masses.emplace_back(massPos);
   cell->hhh = masses.size()-1;
-  surfaceMassIndices.push_back(cell->hhh);
+  surfaceMasses.push_back(cell->hhh);
 
   springs.emplace_back(cell->llh, cell->lhh, k, c, cellSize);
   springs.emplace_back(cell->llh, cell->hlh, k, c, cellSize);
@@ -378,11 +385,11 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
     masses.emplace_back(cellCenter + Vector{-halfCell, halfCell, halfCell});
     cell->lhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->lhh);
+    surfaceMasses.push_back(cell->lhh);
 
     masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->hhh);
+    surfaceMasses.push_back(cell->hhh);
 
     springs.emplace_back(cell->llh, cell->lhh, k, c, cellSize);
     springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
@@ -400,11 +407,11 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
     masses.emplace_back(cellCenter + Vector{halfCell, -halfCell, halfCell});
     cell->hlh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->hlh);
+    surfaceMasses.push_back(cell->hlh);
 
     masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->hhh);
+    surfaceMasses.push_back(cell->hhh);
 
     springs.emplace_back(cell->llh, cell->hlh, k, c, cellSize);
     springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
@@ -421,7 +428,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
       masses.emplace_back(cellCenter + halfCell);
       cell->hhh = masses.size()-1;
-      surfaceMassIndices.push_back(cell->hhh);
+      surfaceMasses.push_back(cell->hhh);
 
       springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
       springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
@@ -441,12 +448,12 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   massPos = firstCellCenter + Vector{-halfCell, -halfCell, halfCell};
   masses.emplace_back(massPos);
   cell->lhh = masses.size()-1;
-  surfaceMassIndices.push_back(cell->lhh);
+  surfaceMasses.push_back(cell->lhh);
 
   massPos[0] += cellSize;
   masses.emplace_back(massPos);
   cell->hhh = masses.size()-1;
-  surfaceMassIndices.push_back(cell->hhh);
+  surfaceMasses.push_back(cell->hhh);
 
   springs.emplace_back(cell->lhl, cell->lhh, k, c, cellSize);
   springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
@@ -461,11 +468,11 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
     masses.emplace_back(cellCenter + Vector{-halfCell, halfCell, halfCell});
     cell->lhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->lhh);
+    surfaceMasses.push_back(cell->lhh);
 
     masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->hhh);
+    surfaceMasses.push_back(cell->hhh);
 
     springs.emplace_back(cell->lhl, cell->lhh, k, c, cellSize);
     springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
@@ -485,7 +492,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
     masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->hhh);
+    surfaceMasses.push_back(cell->hhh);
 
     springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
     springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
@@ -501,7 +508,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
       masses.emplace_back(cellCenter + halfCell);
       cell->hhh = masses.size()-1;
-      surfaceMassIndices.push_back(cell->hhh);
+      surfaceMasses.push_back(cell->hhh);
 
       springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
       springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
@@ -522,7 +529,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   massPos = firstCellCenter + Vector{-halfCell, halfCell, halfCell};
   masses.emplace_back(massPos);
   cell->hhh = masses.size()-1;
-  surfaceMassIndices.push_back(cell->hhh);
+  surfaceMasses.push_back(cell->hhh);
 
   springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
   springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
@@ -537,7 +544,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
     masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->hhh);
+    surfaceMasses.push_back(cell->hhh);
 
     springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
     springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
@@ -556,7 +563,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
     masses.emplace_back(cellCenter + halfCell);
     cell->hhh = masses.size()-1;
-    surfaceMassIndices.push_back(cell->hhh);
+    surfaceMasses.push_back(cell->hhh);
 
     springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
     springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
@@ -572,7 +579,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
       masses.emplace_back(cellCenter + halfCell);
       cell->hhh = masses.size()-1;
-      surfaceMassIndices.push_back(cell->hhh);
+      surfaceMasses.push_back(cell->hhh);
 
       springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
       springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
@@ -582,6 +589,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cellCenter[2] = firstCellCenter[2];
     cellCenter[1] += cellSize;
   }
+
 
   /**
    * Fill in cube
@@ -594,7 +602,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
         cells[x][y][z] = buildCell(cellCenter, cells[x-1][y][z], cells[x][y-1][z],
                                    cells[x][y][z-1], cellSize, k, c);
         if(x == cellsPerAxis || y == cellsPerAxis || z == cellsPerAxis)
-          surfaceMassIndices.push_back(cells[x][y][z].hhh);
+          surfaceMasses.push_back(cells[x][y][z].hhh);
 
         // Connect center masses of adjacent cells
         // if(x != 1) {
@@ -619,13 +627,13 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
   // TEMP*******************************************************************************************
   //    - Move mass out of place to test soft body physics
-  Vector temp = masses[0].getState();
-  temp[Mass::POS] -= Vector(halfCell/2, 3);
-  masses[0].update(temp);
-
-  temp = masses[cells[cellsPerAxis][1][1].hll].getState();
-  temp[Mass::POS] += Vector{halfCell, -halfCell, -halfCell};
-  masses[cells[cellsPerAxis][1][1].hll].update(temp);
+//   Vector temp = masses[0].getState();
+//   temp[Mass::POS] -= Vector(halfCell/2, 3);
+//   masses[0].update(temp);
+// 
+//   temp = masses[cells[cellsPerAxis][1][1].hll].getState();
+//   temp[Mass::POS] += Vector{halfCell, -halfCell, -halfCell};
+//   masses[cells[cellsPerAxis][1][1].hll].update(temp);
 
 
 
@@ -636,16 +644,10 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
 
   masses.shrink_to_fit();
   springs.shrink_to_fit();
-  surfaceMassIndices.shrink_to_fit();
-  surfaceMasses.resize(surfaceMassIndices.size());
-  initSurfaceMasses();
+  surfaceMasses.shrink_to_fit();
 
   massRadii      = cellSize/10;
   boundingRadius = 1.2*vecNorm(Vector(sideLengths/2, 3));
-
-  VecList state(masses.size());
-  getState(state);
-  initSolver(state);
 
   cornerMasses[0] = cells[1][1][1].lll;
   cornerMasses[1] = cells[1][1][cellsPerAxis].llh;
@@ -655,6 +657,12 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   cornerMasses[5] = cells[cellsPerAxis][1][cellsPerAxis].hll;
   cornerMasses[6] = cells[cellsPerAxis][cellsPerAxis][1].hhl;
   cornerMasses[7] = cells[cellsPerAxis][cellsPerAxis][cellsPerAxis].hhh;
+
+  VecList state(masses.size());
+  getState(state);
+  initSolver(state);
+  approximateCOM(state);
+  initSprings();
 
   return buildMesh(cells, cellsPerAxis, material);
 }

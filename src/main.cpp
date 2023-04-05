@@ -15,15 +15,16 @@
 #include "rigid_body.h"
 
 
-#define WIN_WIDTH  640.0  // Initial window width
-#define WIN_HEIGHT 640.0  // Initial window height
-#define FOV        1.57   // Field of view (in radians; 90 degrees)
-#define FRAME_RATE 60     // Display frames per second
-#define STEP_RATE  60     // Simulation updates per second
-#define RK4_ITERS  4      // Number of RK4 iterations per update
+#define WIN_WIDTH  640.0    // Initial window width
+#define WIN_HEIGHT 640.0    // Initial window height
+#define FOV        1.57     // Field of view (in radians; 90 degrees)
+#define FRAME_RATE 60       // Display frames per second
+#define STEP_RATE  60       // Simulation updates per second
+#define RK4_ITERS  4        // Number of RK4 iterations per update
+#define COLL_TOL   1.0e-5   // Collision distance tolerance
 
 Renderer renderer(FRAME_RATE);
-Simulation sim(1.0/STEP_RATE, RK4_ITERS);
+Simulation sim(1.0/STEP_RATE, COLL_TOL, RK4_ITERS);
 bool simulationRunning = true;            // Used to stop simulation thread
 
 
@@ -63,32 +64,35 @@ void buildSimulation() {
   float     backgroundColor[3] = { 0.0,  0.0,  0.0};
   float     lightPosition[3]   = {-500, -500, 1000};
   float     lightColor[3]      = { 1.0,  1.0,  1.0};
-  glm::vec3 camPosition        = { 0.0, -2.0,  1.0};
-  glm::vec3 camDirection       = { 0.0,  1.0, -0.3};
+  glm::vec3 camPosition        = { 2.0, -3.0,  1.0};    // Position for viewing collision
+//glm::vec3 camPosition        = { 4.0, -6.0, -1.0};    // Position for viewing collision
+//glm::vec3 camPosition        = { 0.0, -2.0,  1.0};    // Position for viewing cube alone
+  glm::vec3 camDirection       = {-4.0,  6.0, -3.0};
 
-  // STABLE PARAMETERS:
-  // - factory.buildCube(Vector(3), 1, 3, 0.1, 0.008) with 4 integration steps at 60 UPS
-  // - factory.buildCube(Vector(3), 1, 3, 1,   0.04)  with 4 integration steps at 60 UPS
-  // - factory.buildCube(Vector(3), 1, 3, 1,5, 0.1)   with 4 integration steps at 60 UPS
-  //     - Not stable with 1 integration step at 240 UPS, which I thought would be equivalent
+  Vector   cubePos   = {0.0, 0.0, 0.0};      // Position
+  double   cubeSize  = 1.0;                  // Side length
+  int      cubeCPA   = 3;                    // Cells per axis (determines number of point masses)
+  double   k         = 20000;                  // Spring coefficient
+  double   c         = 0.5;                    // Damping coefficient
+  Material cubeMat   = {{1, 0, 0, 1}, 1};    // Color and reflectivity
 
-  Vector   cubePos  = {0.0, 0.0, 0.0};      // Position
-  double   cubeSize = 1.0;                  // Side length
-  int      cubeCPA  = 3;                    // Cells per axis (determines number of point masses)
-  double   k        = 1.5;                  // Spring coefficient
-  double   c        = 0.1;                  // Damping coefficient
-  double   gamma    = c;                    // Additional stabilizing friction coefficient
-  Material cubeMat  = {{1, 0, 0, 1}, 1};    // Color and reflectivity
+  Vector   rectPos   = {0.0, 0.0, -1.7};
+  // Vector   rectPos   = {0.0, 0.0, -3.2};
+  double   rectLenX  = 4;
+  double   rectLenY  = rectLenX;
+  double   rectLenZ  = 2;
+  double   rectAngle = 0.0;
+//double   rectAngle = 0.52;
+  Vector   rectAxis  = {0.2, 0.8, 0.5};
 
   // Soft body
-  SoftCube cube(1, gamma);
+  SoftCube cube(1);
   SoftBodyMesh cubeMesh = cube.buildStructure(cubePos, cubeSize, cubeCPA, k, c, cubeMat);
-
   sim.addBody(cube);
   cubeMesh.bindBody(sim.getSoftBodies()[0]);
 
   // Rigid bodies
-  RigidRectPrism rect(Vector{0, 0, -3}, 4, 2, 4, 0.52, Vector{0.2, 0.8, 0.5});
+  RigidRectPrism rect(rectPos, rectLenX, rectLenY, rectLenZ, rectAngle, rectAxis);
   sim.addBody(rect);
 
   // Visualization
@@ -102,8 +106,8 @@ void buildSimulation() {
 
 
 /**
- * @brief Simulation thread function. Builds the simulation and updates it at
- *        the rate defined by STEP_RATE until simulationRunning is set to false.
+ * @brief Simulation thread function. Updates simulation at the rate defined by
+ *        STEP_RATE until simulationRunning is set to false.
  */
 DWORD WINAPI runSimulation(LPVOID args) {
   const double UPDATE_DURATION = 1000.0 / STEP_RATE;
@@ -152,7 +156,7 @@ int main() {
                                 buildShader(GL_FRAGMENT_SHADER, "fragment_shader.fs"), 0);
   renderer.setProgram(program);
 
-  // Start simulation
+  // Initialize simulation
   buildSimulation();
   HANDLE simThread = CreateThread(NULL, 0, runSimulation, NULL, 0, NULL);
 

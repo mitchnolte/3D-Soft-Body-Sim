@@ -13,16 +13,17 @@ class RigidRectPrism;
  * @brief Manages and updates the objects in the simulation.
  */
 class Simulation {
-  double time;
-  double dt;
   std::vector<SoftBody*> softBodies;
   std::vector<RigidBody*> rigidBodies;
-  int iterationsPerUpdate;
+  double dt;                           // Time step duration
+  double time;
+  double collisionTolerance;           // Collision distance tolerance
+  int iterationsPerUpdate;             // Number of RK4 iterations per time step
 
-  void handleCollisions(std::vector<Collision*>& collisions, std::vector<const VecList*>& sbStates);
+  void handleCollisions(std::vector<Collision*>& collisions, double tEnd);
 
 public:
-  Simulation(double dt, int iterationsPerUpdate=1);
+  Simulation(double dt, double collisionTolerance, int iterationsPerUpdate=1);
   ~Simulation();
   void addBody(const SoftCube& body);
   void addBody(const RigidRectPrism& body);

@@ -14,6 +14,14 @@ double RigidBody::getBoundingRadius() const {
   return boundingRadius;
 }
 
+/**
+ * @brief Returns a pair with the static and kinetic friction coefficients of
+ *        the rigid body's surface.
+ */
+const std::pair<double, double>& RigidBody::getFrictionCoefficients() const {
+  return friction;
+}
+
 
 /*******************************************************************************
  *  RIGID RECTANGULAR PRISM
@@ -22,8 +30,9 @@ double RigidBody::getBoundingRadius() const {
 RigidRectPrism::RigidRectPrism() {}
 
 RigidRectPrism::RigidRectPrism(const RigidRectPrism& rect) {
-  this->centerOfMass = rect.centerOfMass;
+  this->centerOfMass   = rect.centerOfMass;
   this->boundingRadius = rect.boundingRadius;
+  this->friction       = rect.friction;
   for(int i=0; i<8; i++)
     this->vertices[i] = rect.vertices[i];
 
@@ -39,17 +48,21 @@ RigidRectPrism::RigidRectPrism(const RigidRectPrism& rect) {
 /**
  * @brief  Rigid rectangular prism constructor.
  *
- * @param  centerOfMass  Position of the center of mass (in world coordinates).
- * @param  xLen          X-axis side length.
- * @param  zLen          Z-axis side length. Defaults to x-axis length.
- * @param  yLen          Y-axis side length. Defaults to x-axis length.
- * @param  rotateAngle   Rotation angle for orientation in radians.
- * @param  rotateAxis    Rotation axis for orientation.
+ * @param  centerOfMass     Position of the center of mass.
+ * @param  xLen             X-axis side length.
+ * @param  yLen             Y-axis side length. Defaults to x-axis length.
+ * @param  zLen             Z-axis side length. Defaults to x-axis length.
+ * @param  rotateAngle      Rotation angle for orientation in radians.
+ * @param  rotateAxis       Rotation axis for orientation.
+ * @param  staticFriction   Static friction coefficient of surface.
+ * @param  kineticFriction  Kinetic friction coefficient of surface.
  */
-RigidRectPrism::RigidRectPrism(const Vector& centerOfMass, float xLen, float zLen, float yLen,
-                               float rotateAngle, const Vector& rotateAxis)
+RigidRectPrism::RigidRectPrism(const Vector& centerOfMass, float xLen, float yLen, float zLen,
+                               float rotateAngle, const Vector& rotateAxis,
+                               double staticFriction, double kineticFriction)
 {
   this->centerOfMass = centerOfMass;
+  this->friction     = std::make_pair(staticFriction, kineticFriction);
 
   xLen /= 2;
   if(yLen == 0) yLen = xLen;
@@ -162,7 +175,7 @@ Mesh RigidRectPrism::buildMesh() {
 std::vector<int> RigidRectPrism::distanceFromFaces(double distances[6], const Vector& point, 
                                                    bool colliding)
 {
-  std::vector<int> noCollisionFaces(1, -1);
+  std::vector<int> noCollisionFaces;
 
   // Direction from 2 opposing vertices of the prism to the mass position
   Vector direction[2] = {point - vertices[0], point - vertices[6]};
@@ -170,14 +183,16 @@ std::vector<int> RigidRectPrism::distanceFromFaces(double distances[6], const Ve
   for(int i=0; i<6; i++) {
     distances[i] = vecDot(direction[i&1], faces[i].normal);   // Bitwise & to determine if i is even
     if(distances[i] > 0) {
-      if(colliding) return noCollisionFaces;
-
-      if(noCollisionFaces[0] == -1) noCollisionFaces[0] = i;
-      else                          noCollisionFaces.push_back(i);
+      // printf("%f\n", distances[i]);
+      if(colliding) return std::vector<int>(1, -1);
+      noCollisionFaces.push_back(i);
 
       if(i&1 == 0) i++;   // Skip checking opposing face since the point must be inside
     }
   }
+
+  if(colliding)
+    return std::vector<int>(1);
   return noCollisionFaces;
 }
 
@@ -215,8 +230,8 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
                                                      const VecList& state, double tStart, double dt)
 {
   std::vector<Collision*> collisions;
-  const std::vector<Mass*>& masses = softBody->getSurfaceMasses();
-  for(int i=0; i<state.size(); i++) {
+  const std::vector<Mass>& masses      = softBody->getMasses();
+  for(int i=0; i<masses.size(); i++) {
 
     // Check if mass is colliding with prism
     const Vector& posEnd = state[i][Mass::POS];
@@ -225,7 +240,7 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
       continue;
 
     // Determine which face the mass collided with
-    Vector posStart = masses[i]->getPos();
+    Vector posStart = masses[i].getPos();
     double distStart[6];
     std::vector<int> possibleFaces = distanceFromFaces(distStart, posStart, false);
     if(possibleFaces.size() == 0)
@@ -273,6 +288,7 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
     S_RRP_Coll coll;
     coll.type = CollType::soft_rigidRectPrism;
     coll.time = tColl;
+    coll.e    = 0.5;
     coll.mass = i;
     coll.face = face;
     collisions.push_back(new S_RRP_Coll(coll));

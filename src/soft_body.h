@@ -11,6 +11,9 @@ class Mass;
 class Spring;
 
 
+/**
+ * @brief Information about a surface used in handling resting contact.
+ */
 struct Surface {
   const Vector* normal;
   double staticFriction;
@@ -40,8 +43,6 @@ protected:
 
 
   void initSolver(const VecList& state=VecList());
-  void initSprings();
-
   virtual void approximateCOM(const VecList& state) = 0;
 
 public:
@@ -55,10 +56,11 @@ public:
   const std::vector<Mass>& getMasses() const;
   const std::vector<int>& getSurfaceMassIndices() const;
   double getBoundingRadius() const;
-  void ode(VecList& rates, const VecList& states, double time);
-  double handleCollision(double tColl, double tEnd, const RigidRectPrism* rigidBody,
-                         int massIndex, int faceIndex, double e, double collisionTolerance);
+  void ode(VecList& rate, const VecList& state, double time);
+  void handleCollision(double tColl, const RigidRectPrism* rigidBody,
+                       int massIndex, int faceIndex, double e);
 
+  void updateRestCollisions();
   const VecList& calculateUpdatedState(double time, int RK4iterations);
   void resetStateBuffer();
   void flushStateBuffer();
@@ -91,14 +93,12 @@ public:
  */
 class Spring {
   std::pair<int, int> masses; // Indices of connected masses in soft body mass list
-  Vector direction;           // Direction from mass 2 to mass 1
   double restLen;             // Length of spring at rest
   double k;                   // Spring coefficient
   double c;                   // Damping coefficient
 
 public:
   Spring(int mass1, int mass2, double k, double c, double restLen);
-  void setDirection(const Vector& direction);
   const std::pair<int, int>& getMassIndices() const;
   Vector calculateForce(const Vector& m1State, const Vector& m2State, double massRadii);
 };

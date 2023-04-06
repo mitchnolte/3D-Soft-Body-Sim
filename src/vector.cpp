@@ -34,7 +34,7 @@ Vector matVecMul(const glm::mat4& M, const Vector v, float w) {
 
 /**
  * @brief Returns the unit normal vector for a plane containing the 3 given
- *        points which are expected to have a counterclockwise winding order.
+ *        points, which are expected to have a counterclockwise winding order.
  */
 Vector planeNormal(const Vector& p1, const Vector& p2, const Vector& p3) {
   return normalize(vecCross(p2-p1, p3-p2));

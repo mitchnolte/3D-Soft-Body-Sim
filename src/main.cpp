@@ -14,17 +14,21 @@
 #include "soft_cube.h"
 #include "rigid_body.h"
 
-
-#define WIN_WIDTH  640.0    // Initial window width
-#define WIN_HEIGHT 640.0    // Initial window height
-#define FOV        1.57     // Field of view (in radians; 90 degrees)
-#define FRAME_RATE 60       // Display frames per second
-#define STEP_RATE  60       // Simulation updates per second
-#define RK4_ITERS  4        // Number of RK4 iterations per update
-#define COLL_TOL   1.0e-5   // Collision distance tolerance
+#define FULLSCREEN 0
+#if FULLSCREEN == 1
+  #define WIN_WIDTH  1920.0
+  #define WIN_HEIGHT 1080.0
+#else
+  #define WIN_WIDTH  840
+  #define WIN_HEIGHT 840
+#endif
+#define FOV        1.57   // Field of view (in radians; 90 degrees)
+#define FRAME_RATE 60     // Display frames per second
+#define STEP_RATE  60     // Simulation updates per second
+#define RK4_ITERS  4      // Number of RK4 iterations per update
 
 Renderer renderer(FRAME_RATE);
-Simulation sim(1.0/STEP_RATE, COLL_TOL, RK4_ITERS);
+Simulation sim(1.0/STEP_RATE, RK4_ITERS);
 bool simulationRunning = true;            // Used to stop simulation thread
 
 
@@ -64,26 +68,35 @@ void buildSimulation() {
   float     backgroundColor[3] = { 0.0,  0.0,  0.0};
   float     lightPosition[3]   = {-500, -500, 1000};
   float     lightColor[3]      = { 1.0,  1.0,  1.0};
-  glm::vec3 camPosition        = { 2.0, -3.0,  1.0};    // Position for viewing collision
+  glm::vec3 camPosition        = { 2.5, -6.0,  1.0};    // Position for viewing collision
+//glm::vec3 camPosition        = { 2.0, -3.0,  1.0};    // Position for viewing collision
 //glm::vec3 camPosition        = { 4.0, -6.0, -1.0};    // Position for viewing collision
 //glm::vec3 camPosition        = { 0.0, -2.0,  1.0};    // Position for viewing cube alone
-  glm::vec3 camDirection       = {-4.0,  6.0, -3.0};
+  glm::vec3 camDirection       = { 0.2,  1.0, -0.6};
+//glm::vec3 camDirection       = {-4.0,  6.0, -3.0};
 
   Vector   cubePos   = {0.0, 0.0, 0.0};      // Position
   double   cubeSize  = 1.0;                  // Side length
-  int      cubeCPA   = 3;                    // Cells per axis (determines number of point masses)
-  double   k         = 20000;                  // Spring coefficient
-  double   c         = 0.5;                    // Damping coefficient
+  int      cubeCPA   = 2;                    // Cells per axis (determines number of point masses)
+  double   k         = 3000;                  // Spring coefficient
+//double   k         = 5000;                  // Spring coefficient
+  double   c         = 1;                    // Damping coefficient
   Material cubeMat   = {{1, 0, 0, 1}, 1};    // Color and reflectivity
 
-  Vector   rectPos   = {0.0, 0.0, -1.7};
-  // Vector   rectPos   = {0.0, 0.0, -3.2};
+//Vector   rectPos   = {0.0, 0.0, -1.7};
+//Vector   rectPos   = {-2.3, 0.0, -1.7};
+//Vector   rectPos   = {0.0, 0.0, -2.0};
+  Vector   rectPos   = {1.0, 0.0, -4.0};
+//Vector   rectPos   = {0.0, 0.0, -7.0};
+//Vector   rectPos   = {0.0, 0.0, -10.0};
   double   rectLenX  = 4;
   double   rectLenY  = rectLenX;
   double   rectLenZ  = 2;
-  double   rectAngle = 0.0;
+//double   rectAngle = 0.0;
+  double   rectAngle = 0.1;
 //double   rectAngle = 0.52;
-  Vector   rectAxis  = {0.2, 0.8, 0.5};
+//Vector   rectAxis  = {0.2, 0.8, 0.5};
+  Vector   rectAxis  = {0.0, 1.0, 0.0};
 
   // Soft body
   SoftCube cube(1);
@@ -132,7 +145,13 @@ int main() {
 
   // Create window
   GLFWwindow* window;
-  window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Soft Body Simulation", NULL, NULL);
+  GLFWmonitor* monitor = NULL;
+
+#if FULLSCREEN == 1
+  monitor = glfwGetPrimaryMonitor();
+#endif
+
+  window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Soft Body Simulation", monitor, NULL);
   if(!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);

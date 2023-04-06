@@ -1,3 +1,4 @@
+#include <set>
 #include "soft_body.h"
 #include "rigid_body.h"
 
@@ -51,7 +52,6 @@ SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& s
   VecList state(masses.size());
   getState(state);
   initSolver(state);
-  initSprings();
 }
 
 
@@ -61,13 +61,6 @@ void SoftBody::initSolver(const VecList& state) {
 
   using namespace std::placeholders;
   solver.setODEfunction(std::bind(&SoftBody::ode, this, _1, _2, _3));
-}
-
-void SoftBody::initSprings() {
-  for(Spring& spring : springs) {
-    std::pair<int, int> indices = spring.getMassIndices();
-    spring.setDirection(masses[indices.first].getPos() - masses[indices.second].getPos());
-  }
 }
 
 /**
@@ -96,159 +89,111 @@ double SoftBody::getBoundingRadius() const {
  * @brief Set of ordinary differential equations that control the state of the
  *        soft body. Meant to be used by a MultiStateRK4solver object.
  *
- * @param  rates   Destination VecList that's populated with a dState/dt vector
- *                 for each state vector in the given list.
- * @param  states  List of states calculated from the previous iteration.
- * @param  time    Time which the ODEs are integrated up to.
+ * @param  rate   Destination VecList that's populated with a dState/dt vector
+ *                for each state vector in the given list.
+ * @param  state  List of states calculated from the previous iteration.
+ * @param  time   Time which the ODEs are integrated up to.
  */
-void SoftBody::ode(VecList& rates, const VecList& states, double time) {
-  for(int i=0; i<states.size(); i++) {
-    rates[i][Mass::POS] = states[i][Mass::VEL];   // Change in position
-    rates[i][5]         = -9.8;                   // Gravity
+void SoftBody::ode(VecList& rate, const VecList& state, double time) {
+  for(int i=0; i<state.size(); i++) {
+    rate[i][Mass::POS] = state[i][Mass::VEL];   // Change in position
+    rate[i][5]         = -9.8;                  // Gravity
   }
 
   // Spring forces
   for(Spring& spring : springs) {
     std::pair<int, int> sMasses = spring.getMassIndices();
-    const Vector& force = spring.calculateForce(states[sMasses.first], states[sMasses.second], massRadii);
-    rates[sMasses.first]  += force;
-    rates[sMasses.second] -= force;
+    const Vector& force = spring.calculateForce(state[sMasses.first],
+                                                state[sMasses.second], massRadii);
+    rate[sMasses.first]  += force;
+    rate[sMasses.second] -= force;
+  }
+
+  // Resting contact
+  for(const auto& coll : restCollisions) {
+    Vector&        massRate   = rate[coll.first];
+    const Surface& surface    = coll.second;                 // Surface mass is in contact with
+    const Vector&  normalV    = *surface.normal;             // Normal vector of surface
+    Vector         dPos       = massRate[Mass::POS];         // Change in position
+    Vector         force      = massRate[Mass::VEL];         // Force on mass
+    double         normalF    = vecDot(force, -normalV);     // Normal force
+    double         dPosNormal = vecDot(dPos, normalV);       // Position change parallel to normal
+    Vector         dPosOrthog = dPos - dPosNormal*normalV;   // Position change orthogonal to normal
+
+    // Normal force
+    if(normalF > 0)
+      massRate[Mass::VEL] += normalF * normalV;
+    if(dPosNormal < 0)
+      massRate[Mass::POS] -= dPosNormal*normalV;
+
+//  // Static friction
+//  if(vecNorm(dPosOrthog) < 1e-8) {
+//    Vector forceOrthog = force + normalF*normalV;
+//    if(vecNorm(forceOrthog) <= surface.staticFriction * normalF) {
+//      massRate[Mass::VEL] -= forceOrthog;
+//    }
+//  }
+//
+//  // Kinematic friction
+//  else massRate[Mass::VEL] -= surface.kineticFriction * normalF * normalize(dPosOrthog);
   }
 }
 
 
+/**
+ * @brief  Advances soft body to linearly approximated collision time and
+ *         calculates the state of the mass after colliding with the rigid body.
+ *         RK4 solver state buffer should be at or prior to the collision state,
+ *         and will be at the time of the collision when the function returns.
+ *
+ * @param  tColl      Approximate collision time.
+ * @param  rigidBody  Rigid body involved in collision.
+ * @param  massIndex  Index of mass involved in collision.
+ * @param  faceIndex  Index of face mass collided with.
+ * @param  e          Elasticity of collision.
+ */
+void SoftBody::handleCollision(double tColl, const RigidRectPrism* rigidBody,
+                               int massIndex, int faceIndex, double e)
+{
+  solver.integrate(tColl);
 
+  const Quad&   face      = rigidBody->getFaces()[faceIndex];
+  const Vector& facePoint = rigidBody->getVertices()[face.vertices[0]];
+  const Vector& massState = solver.getState()[massIndex];
+  double        distance  = vecDot(massState[Mass::POS] - facePoint, face.normal);
+  double        velNormal = vecDot(massState[Mass::VEL], face.normal);
 
+  // Calculate post-collision state
+  Vector massStateColl(massState);
+  if(velNormal < 0)
+    massStateColl[Mass::VEL] -= (1+e) * velNormal * face.normal;
+  massStateColl[Mass::POS] -= distance * face.normal;
 
+  solver.setSingleState(massIndex, massStateColl);
+  masses[massIndex].update(massStateColl);
 
-
-
-
-
-
-
-
-#include <iostream>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  // Initiate resting contact
+  const std::pair<double, double>& frictionCoeffs = rigidBody->getFrictionCoefficients();
+  restCollisions[massIndex] = {&face.normal, frictionCoeffs.first, frictionCoeffs.second};
+}
 
 
 /**
- * @brief  Finds the exact time of collision (up to a given amount of precision)
- *         between a mass and a rigid body face based on the linearly
- *         approximated collision time and calculates the new mass state. When
- *         function returns, buffer state will be at time of collision with the
- *         post-collision state of the mass involved in the collision.
- *
- * @param  tColl               Approximate collision time.
- * @param  tEnd                End time of the update step.
- * @param  rigidBody           Rigid body involved in collision.
- * @param  massIndex           Index of mass involved in collision.
- * @param  faceIndex           Index of face mass collided with.
- * @param  e                   Elasticity coefficient.
- * @param  collisionTolerance  Error tolerance for collision distance.
- *
- * @return Time of collision.
+ * @brief Checks if masses have moved away from the surface they were resting on
+ *        and removes their collision from the map if so.
  */
-double SoftBody::handleCollision(double tColl, double tEnd, const RigidRectPrism* rigidBody,
-                                 int massIndex, int faceIndex, double e, double collisionTolerance)
-{
+void SoftBody::updateRestCollisions() {
+  std::set<int> massesToRemove;
+  const VecList& state = solver.getState();
 
-  // printf("Handling collision: ");
+  for(const auto& coll : restCollisions) {
+    const Vector& dPos = Vector(state[coll.first][Mass::POS]) - masses[coll.first].getPos();
+    if(vecDot(dPos, *coll.second.normal) > 0)
+      massesToRemove.insert(coll.first);
+  }
 
-
-  const VecList* state     = &solver.getState();
-  const Vector&  massState = (*state)[massIndex];
-  const Quad&    face      = rigidBody->getFaces()[faceIndex];
-  const Vector&  facePoint = rigidBody->getVertices()[face.vertices[0]];
-
-  double tStart = solver.getTime();
-  double t      = tColl;
-  double distance;                    // Signed distance from mass to face plane
-
-
-  // std::cout << tStart << ", " << tColl << ", " << tEnd << "\n";
-
-
-//   if(t <= tStart) {
-    distance = vecDot(massState[Mass::POS] - facePoint, face.normal);
-//     
-//   }
-// 
-//   else {
-//     VecList stateStart(masses.size());
-//     getState(stateStart);
-// 
-//     // Integrate up to approximated collision time
-//     state    = &solver.integrate(t, restCollisions);
-//     distance = vecDot(massState[Mass::POS] - facePoint, face.normal);
-// 
-// 
-//     printf("Searching for collision time in (");
-// 
-// 
-//     if(distance > 0) {
-//       stateStart = *state;
-//       tStart = tColl;
-//     }else
-//       tEnd = tColl;
-// 
-// 
-//     std::cout << tStart << ", " << tEnd << "): ";
-// 
-// 
-//     // Binary search for collision time
-//     while(fabs(distance) > collisionTolerance) {
-// 
-// 
-//       printf("|");
-// 
-// 
-//       t = 0.5*(tStart + tEnd);
-//       solver.setState(stateStart, tStart);
-//       state     = &solver.integrate(t, restCollisions);
-//       distance  = vecDot(massState[Mass::POS] - facePoint, face.normal);
-//       if(distance > 0) {
-//         stateStart = *state;
-//         tStart = t;
-//       }else
-//         tEnd = t;
-//     }
-// 
-// 
-//     printf("\n");
-//   }
-
-
-  // Calculate state after collision
-  Vector massStateColl(massState);
-  massStateColl[Mass::VEL] -= (1+e) * face.normal * vecDot(massState[Mass::VEL], face.normal);
-  massStateColl[Mass::POS] += distance * face.normal;
-
-
-  // std::cout<<"t = "<<t<<" | d = "<<distance<<" | ct = "<<collisionTolerance<<" | Pos: ("<<massState[0]<<", "<<massState[1]<<", "<<massState[2]<<") --> ("<<massStateColl[0]<<", "<<massStateColl[1]<<", "<<massStateColl[1]<<")\t";
-  // std::cout<<"| Vel: ("<<massState[3]<<", "<<massState[4]<<", "<<massState[5]<<") --> ("<<massStateColl[3]<<", "<<massStateColl[4]<<", "<<massStateColl[5]<<")\n";
-
-
-  solver.setSingleState(massIndex, massStateColl);
-
-  const std::pair<double, double>& frictionCoeffs = rigidBody->getFrictionCoefficients();
-  restCollisions[massIndex] = {&face.normal, frictionCoeffs.first, frictionCoeffs.second};
-  return t;
+  for(int massIndex : massesToRemove)
+    restCollisions.erase(massIndex);
 }
 
 
@@ -257,7 +202,7 @@ double SoftBody::handleCollision(double tColl, double tEnd, const RigidRectPrism
  *        the given number of RK4iterations.
  */
 const VecList& SoftBody::calculateUpdatedState(double time, int RK4iterations) {
-  return solver.integrate(time, restCollisions, RK4iterations);
+  return solver.integrate(time, RK4iterations);
 }
 
 /**
@@ -279,6 +224,8 @@ void SoftBody::resetStateBuffer() {
  */
 void SoftBody::flushStateBuffer() {
   time = solver.getTime();
+  updateRestCollisions();
+
   const VecList& state = solver.getState();
   for(int i=0; i<masses.size(); i++)
     masses[i].update(state[i]);
@@ -327,10 +274,6 @@ Spring::Spring(int mass1, int mass2, double k, double c, double restLen) {
   this->restLen = restLen;
 }
 
-void Spring::setDirection(const Vector& direction) {
-  this->direction = direction;
-}
-
 const std::pair<int, int>& Spring::getMassIndices() const {
   return masses;
 }
@@ -357,31 +300,18 @@ Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State, doub
   Vector u           = direction / length;              // Unit length direction
   double deformation = length - restLen;                // Spring deformation
   dState[Mass::VEL]  = -k*deformation*u - c*velocity;   // Spring force
+  // dState[Mass::VEL]  = -k*std::pow(deformation, 0.5) - c*velocity;
 
   // Internal mass collision
   // if(length <= 2*massRadii) {
+  //   printf("internal collision\n");
   //   double velU = vecDot(velocity, u);
   //   if(velU > 0) {
-  //     dState[Mass::POS] += 2.0 * u * velU;
+  //     // dState[Mass::POS] = 2.0 * u * velU;
   //     // printf("%f, %f, %f\n", dState[0], dState[1], dState[2]);
   //   }
-  //   // force += 0.2*u / (length * length);
+  //   dState[Mass::POS] = u / (length * length);
   // }
-  // double distance = vecDot(direction, this->direction);
-  // if(distance < 0) {
-  //   // dState[Mass::POS] += 2.0 * u * vecDot(velocity, u);
-  //   dState[Mass::POS] += 2.0 * this->direction * vecDot(velocity, this->direction);
-  //   printf("%f, %f, %f\n", dState[0], dState[1], dState[2]);
-  // }
-
-  // double distance = vecDot(direction, this->direction);
-  // if(length <= 2*massRadii || distance < 0) {
-  //   if(distance < 0)
-  //     dState[Mass::POS] += 2.0 * u * vecDot(velocity, u);
-  //   else
-  //     dState[Mass::POS] -= 2.0 * u * vecDot(velocity, u);
-  // }
-  // this->direction = u;
 
   return dState;
 }

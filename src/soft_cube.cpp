@@ -622,22 +622,6 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cellCenter[0] += cellSize;            // Increment cell x position
   }
 
-
-
-
-  // TEMP*******************************************************************************************
-  //    - Move mass out of place to test soft body physics
-//   Vector temp = masses[0].getState();
-//   temp[Mass::POS] -= Vector(halfCell/2, 3);
-//   masses[0].update(temp);
-// 
-//   temp = masses[cells[cellsPerAxis][1][1].hll].getState();
-//   temp[Mass::POS] += Vector{halfCell, -halfCell, -halfCell};
-//   masses[cells[cellsPerAxis][1][1].hll].update(temp);
-
-
-
-
   /**
    * Initialize member variables
    */
@@ -646,7 +630,7 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   springs.shrink_to_fit();
   surfaceMasses.shrink_to_fit();
 
-  massRadii      = cellSize/10;
+  massRadii      = cellSize/5;
   boundingRadius = 1.2*vecNorm(Vector(sideLengths/2, 3));
 
   cornerMasses[0] = cells[1][1][1].lll;
@@ -662,7 +646,6 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   getState(state);
   initSolver(state);
   approximateCOM(state);
-  initSprings();
 
   return buildMesh(cells, cellsPerAxis, material);
 }

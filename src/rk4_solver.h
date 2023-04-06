@@ -3,9 +3,7 @@
 
 #include <functional>
 #include <unordered_map>
-// #include "soft_body.h"
 #include "vector.h"
-struct Surface;
 
 typedef std::function< void (Vector&,  const Vector&,  double) >  ODEfn;
 typedef std::function< void (VecList&, const VecList&, double) >  MultiStateODEfn;
@@ -36,15 +34,13 @@ public:
  *        fourth-order Runge-Kutta method for a list of state vectors.
  */
 class MultiStateRK4solver {
-  MultiStateODEfn f;
-  double time;
-  VecList state;
+  MultiStateODEfn f;  // ODE function that returns rate vectors
+  double time;        // Time of current state
+  VecList state;      // State buffer for object
   VecList k1;
   VecList k2;
   VecList k3;
   VecList k4;
-
-  void handleRestCollisions(std::unordered_map<int, Surface>& restCollisions, VecList& newState);
 
 public:
   MultiStateRK4solver();
@@ -54,8 +50,7 @@ public:
   void setSingleState(int index, const Vector& state);
   double getTime() const;
   const VecList& getState() const;
-  const VecList& integrate(double time, std::unordered_map<int, Surface>& restCollisions,
-                           int steps=1);
+  const VecList& integrate(double time, int steps=1);
 };
 
 #endif

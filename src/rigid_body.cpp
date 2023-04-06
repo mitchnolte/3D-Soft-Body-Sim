@@ -65,10 +65,10 @@ RigidRectPrism::RigidRectPrism(const Vector& centerOfMass, float xLen, float yLe
   this->friction     = std::make_pair(staticFriction, kineticFriction);
 
   xLen /= 2;
-  if(yLen == 0) yLen = xLen;
-  else          yLen /= 2;
-  if(zLen == 0) zLen = xLen;
-  else          zLen /= 2;
+  if(yLen == 0.0) yLen = xLen;
+  else            yLen /= 2;
+  if(zLen == 0.0) zLen = xLen;
+  else            zLen /= 2;
   boundingRadius = vecNorm(Vector{xLen, yLen, zLen});
 
   // Create vertices centered on origin
@@ -183,7 +183,6 @@ std::vector<int> RigidRectPrism::distanceFromFaces(double distances[6], const Ve
   for(int i=0; i<6; i++) {
     distances[i] = vecDot(direction[i&1], faces[i].normal);   // Bitwise & to determine if i is even
     if(distances[i] > 0) {
-      // printf("%f\n", distances[i]);
       if(colliding) return std::vector<int>(1, -1);
       noCollisionFaces.push_back(i);
 
@@ -230,8 +229,9 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
                                                      const VecList& state, double tStart, double dt)
 {
   std::vector<Collision*> collisions;
-  const std::vector<Mass>& masses      = softBody->getMasses();
-  for(int i=0; i<masses.size(); i++) {
+  const std::vector<Mass>& masses        = softBody->getMasses();
+  const std::vector<int>&  surfaceMasses = softBody->getSurfaceMassIndices();
+  for(int i : surfaceMasses) {
 
     // Check if mass is colliding with prism
     const Vector& posEnd = state[i][Mass::POS];
@@ -277,9 +277,9 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
 
     // Find time of linearly approximated collision
     double tColl = tStart;
-    for(int i=0; i<3; i++) {
-      if(posStart[i] != posEnd[i]) {
-        tColl += dt * (approxCollPoint[i] - posStart[i]) / (posEnd[i] - posStart[i]);
+    for(int j=0; j<3; j++) {
+      if(fabs(posStart[j] - posEnd[j]) > 1e-8) {
+        tColl += dt * (approxCollPoint[j] - posStart[j]) / (posEnd[j] - posStart[j]);
         break;
       }
     }

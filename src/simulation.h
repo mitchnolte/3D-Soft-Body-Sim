@@ -17,13 +17,12 @@ class Simulation {
   std::vector<RigidBody*> rigidBodies;
   double dt;                           // Time step duration
   double time;
-  double collisionTolerance;           // Collision distance tolerance
   int iterationsPerUpdate;             // Number of RK4 iterations per time step
 
   void handleCollisions(std::vector<Collision*>& collisions, double tEnd);
 
 public:
-  Simulation(double dt, double collisionTolerance, int iterationsPerUpdate=1);
+  Simulation(double dt, int iterationsPerUpdate=1);
   ~Simulation();
   void addBody(const SoftCube& body);
   void addBody(const RigidRectPrism& body);

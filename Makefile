@@ -16,7 +16,7 @@ src/camera.o:     src/camera.h
 src/mesh.o:       src/mesh.h src/soft_body.h
 src/simulation.o: src/simulation.h src/soft_body.h src/rigid_body.h
 src/vector.o:     src/vector.h
-src/rk4_solver.o: src/rk4_solver.h src/soft_body.h
+src/rk4_solver.o: src/rk4_solver.h
 src/soft_body.o:  src/soft_body.h src/rigid_body.h
 src/soft_cube.o:  src/soft_cube.h
 src/rigid_body.o: src/rigid_body.h src/soft_body.h src/mesh.h

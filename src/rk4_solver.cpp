@@ -1,5 +1,4 @@
 #include "rk4_solver.h"
-#include "soft_body.h"
 
 
 RK4solver::RK4solver() {
@@ -110,39 +109,8 @@ const VecList& MultiStateRK4solver::getState() const {
   return state;
 }
 
-void MultiStateRK4solver::handleRestCollisions(std::unordered_map<int, Surface>& restCollisions,
-                                               VecList& newState)
-{
-  for(const auto& coll : restCollisions) {
-    Vector&        dState     = newState[coll.first];        // Change in state
-    const Surface& surface    = coll.second;                 // Surface mass is in contact with
-    const Vector&  normalV    = *surface.normal;             // Normal vector of surface
-    Vector         dPos       = dState[Mass::POS];           // Change in position
-    Vector         force      = dState[Mass::VEL];           // Force applied to mass
-    double         normalF    = vecDot(force, -normalV);     // Normal force
-    double         dPosNormal = vecDot(dPos, normalV);       // Position change parallel to normal
-    Vector         dPosOrthog = dPos - dPosNormal*normalV;   // Position change orthogonal to normal
 
-    // Stop mass from moving through surface
-    if(dPosNormal < 0)
-      dState[Mass::POS] -= dPosNormal*normalV;
-    // else if(dPosN > 0)
-    //   restCollisions.erase(coll.first);
-
-    // Apply friction
-    if(vecNorm(dPosOrthog) == 0) {
-      double forceOrthog = vecNorm(force + normalF*normalV);
-      if(forceOrthog <= surface.staticFriction * normalF)
-        dState[Mass::VEL] = 0;
-    }
-    else dState[Mass::POS] -= surface.kineticFriction * normalF * normalize(dPosOrthog);
-  }
-}
-
-
-const VecList& MultiStateRK4solver::integrate(double time,
-                                        std::unordered_map<int, Surface>& restCollisions, int steps)
-{
+const VecList& MultiStateRK4solver::integrate(double time, int steps) {
   if(time <= this->time)
     return state;
 
@@ -159,18 +127,13 @@ const VecList& MultiStateRK4solver::integrate(double time,
     }
 
     f(k1, state, t);
-    handleRestCollisions(restCollisions, k1);
 
     t += halfStep;
     f(k2, state + halfStep*k1, t);
-    handleRestCollisions(restCollisions, k2);
-
     f(k3, state + halfStep*k2, t);
-    handleRestCollisions(restCollisions, k3);
 
     t += halfStep;
     f(k4, state + stepSize*k3, t);
-    handleRestCollisions(restCollisions, k4);
 
     const VecList& dState = stepSize * (1.0/6.0) * (k1 + 2*(k2 + k3) + k4);
     for(int j=0; j<state.size(); j++) {

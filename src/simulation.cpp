@@ -31,13 +31,11 @@ void addCollisions(std::vector<Collision*>& colls, const std::vector<Collision*>
  * @brief  Simulation constructor.
  *
  * @param  dt                   Time between each update.
- * @param  collisionTolerance   Error tolerance for collision distance.
  * @param  iterationsPerUpdate  Number of RK4 iterations per update.
  */
-Simulation::Simulation(double dt, double collisionTolerance, int iterationsPerUpdate) {
+Simulation::Simulation(double dt, int iterationsPerUpdate) {
   this->dt = dt;
   this->time = 0;
-  this->collisionTolerance = collisionTolerance;
   this->iterationsPerUpdate = iterationsPerUpdate;
 }
 
@@ -69,9 +67,8 @@ void Simulation::update() {
 
   // Calculate soft body states at end of update step
   std::vector<const VecList*> sbStates(softBodies.size());
-  for(int i=0; i<softBodies.size(); i++) {
+  for(int i=0; i<softBodies.size(); i++)
     sbStates[i] = &softBodies[i]->calculateUpdatedState(tEnd, iterationsPerUpdate);
-  }
 
   // Collision detection
   std::vector<Collision*> collisions;
@@ -123,21 +120,14 @@ void Simulation::handleCollisions(std::vector<Collision*>& collisions, double tE
         collidingSoftBodies.insert(coll.softBody);
       }
 
-      softBodies[coll.softBody]->handleCollision(coll.time, tEnd,
+      softBodies[coll.softBody]->handleCollision(coll.time,
                                                  (RigidRectPrism*)rigidBodies[coll.rigidBody], 
-                                                 coll.mass, coll.face, coll.e, collisionTolerance);
+                                                 coll.mass, coll.face, coll.e);
       break;
     }
   }
 
   // Advance soft bodies back up to current time
-  for(int i : collidingSoftBodies) {
+  for(int i : collidingSoftBodies)
     softBodies[i]->calculateUpdatedState(tEnd, 1);
-  }
-
-
-
-
-
-  // printf("\n");
 }

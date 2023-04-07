@@ -4,6 +4,7 @@
 #include "rigid_body.h"
 #include "soft_body.h"
 #include "mesh.h"
+#include "collision_data.h"
 
 
 const Vector& RigidBody::getCenterOfMass() const {
@@ -182,7 +183,7 @@ std::vector<int> RigidRectPrism::distanceFromFaces(double distances[6], const Ve
 
   for(int i=0; i<6; i++) {
     distances[i] = vecDot(direction[i&1], faces[i].normal);   // Bitwise & to determine if i is even
-    if(distances[i] > 0) {
+    if(distances[i] >= 0) {
       if(colliding) return std::vector<int>(1, -1);
       noCollisionFaces.push_back(i);
 
@@ -217,18 +218,18 @@ Vector RigidRectPrism::planeIntersection(const Vector& posA, const Vector& posB,
  * @brief  Checks every surface mass in the given soft body for collision with
  *         the prism.
  *
- * @param  softBody  Pointer to the soft body.
- * @param  state     State of the soft body at the end of the update step.
- * @param  tStart    Starting time of update step.
- * @param  dt        Duration of update step.
+ * @param  collisions  Destination vector for collision data.
+ * @param  softBody    Pointer to the soft body.
+ * @param  state       State of the soft body at the end of the update step.
+ * @param  tStart      Starting time of update step.
+ * @param  dt          Duration of update step.
  *
  * @return List of collision data structs in an arbitrary order. Soft and rigid
  *         body indices are not initialized.
  */
-std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBody,
-                                                     const VecList& state, double tStart, double dt)
+void RigidRectPrism::detectCollisions(std::vector<Collision*>& collisions, SoftBody* softBody,
+                                      const VecList& state, double tStart, double dt)
 {
-  std::vector<Collision*> collisions;
   const std::vector<Mass>& masses        = softBody->getMasses();
   const std::vector<int>&  surfaceMasses = softBody->getSurfaceMassIndices();
   for(int i : surfaceMasses) {
@@ -243,8 +244,20 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
     Vector posStart = masses[i].getPos();
     double distStart[6];
     std::vector<int> possibleFaces = distanceFromFaces(distStart, posStart, false);
-    if(possibleFaces.size() == 0)
+    if(possibleFaces.size() == 0) {
+      int closestFace = 0;
+      for(int i=1; i<6; i++) {
+        closestFace = (distStart[i] > distStart[closestFace])?  i : closestFace;
+        if(distStart[closestFace] > -1e-8)
+          continue;
+      }
+
+      // Move to closest face if no previous non-colliding state
+      Vector collPoint = posStart + distStart[closestFace] * faces[closestFace].normal;
+      Surface surface{&faces[closestFace].normal, friction.first, friction.second};
+      collisions.push_back(new SoftRigidCollision(tStart, collPoint, surface, softBody, i, 0.5));
       continue;
+    }
 
     // Find linearly approximated point of collision with face plane
     int face = possibleFaces[0];
@@ -285,14 +298,7 @@ std::vector<Collision*> RigidRectPrism::detectCollisions(const SoftBody* softBod
     }
 
     // Add collision to list
-    S_RRP_Coll coll;
-    coll.type = CollType::soft_rigidRectPrism;
-    coll.time = tColl;
-    coll.e    = 0.5;
-    coll.mass = i;
-    coll.face = face;
-    collisions.push_back(new S_RRP_Coll(coll));
+    Surface surface{&faces[face].normal, friction.first, friction.second};
+    collisions.push_back(new SoftRigidCollision(tColl, approxCollPoint, surface, softBody, i, 0.5));
   }
-
-  return collisions;
 }

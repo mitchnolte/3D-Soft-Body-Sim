@@ -2,9 +2,9 @@
 #define RIGID_BODY_H
 
 #include "vector.h"
-#include "collision_data.h"
 class SoftBody;
 class Mesh;
+class Collision;
 
 
 /**
@@ -23,8 +23,8 @@ public:
   const std::pair<double, double>& getFrictionCoefficients() const;
 
   virtual Mesh buildMesh() = 0;
-  virtual std::vector<Collision*> detectCollisions(const SoftBody* softBody, const VecList& state,
-                                                   double tStart, double dt) = 0;
+  virtual void detectCollisions(std::vector<Collision*>& collisions, SoftBody* softBody,
+                                const VecList& state, double tStart, double dt) = 0;
 };
 
 
@@ -54,12 +54,12 @@ public:
   RigidRectPrism(const RigidRectPrism& rect);
   RigidRectPrism(const Vector& centerOfMass, float xLen, float yLen=0, float zLen=0,
                  float rotateAngle=0.0, const Vector& rotateAxis=Vector{0,0,1},
-                 double staticFriction=0.5, double kineticFriction=0.3);
+                 double staticFriction=0.3, double kineticFriction=0.1);
   const Vector* getVertices() const;
   const Quad* getFaces() const;
   Mesh buildMesh();
-  std::vector<Collision*> detectCollisions(const SoftBody* softBody, const VecList& state,
-                                           double tStart, double dt);
+  void detectCollisions(std::vector<Collision*>& collisions, SoftBody* softBody,
+                        const VecList& state, double tStart, double dt);
 };
 
 #endif

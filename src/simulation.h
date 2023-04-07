@@ -1,8 +1,8 @@
 #ifndef SIMULATION_H
 #define SIMULATION_H
 
+#include <unordered_set>
 #include "vector.h"
-#include "collision_data.h"
 class SoftBody;
 class SoftCube;
 class RigidBody;
@@ -18,8 +18,6 @@ class Simulation {
   double dt;                           // Time step duration
   double time;
   int iterationsPerUpdate;             // Number of RK4 iterations per time step
-
-  void handleCollisions(std::vector<Collision*>& collisions, double tEnd);
 
 public:
   Simulation(double dt, int iterationsPerUpdate=1);

@@ -2,23 +2,14 @@
 #define SOFT_BODY_H
 
 #include <GL/glew.h>
-#include <unordered_map>
+#include <list>
 #include "vector.h"
 #include "rk4_solver.h"
+#include "collision_data.h"
 class RigidRectPrism;
 
 class Mass;
 class Spring;
-
-
-/**
- * @brief Information about a surface used in handling resting contact.
- */
-struct Surface {
-  const Vector* normal;
-  double staticFriction;
-  double kineticFriction;
-};
 
 
 /**
@@ -27,7 +18,6 @@ struct Surface {
  */
 class SoftBody {
 protected:
-  Vector centerOfMass;              // Approximated center of mass
   std::vector<Mass> masses;
   std::vector<Spring> springs;
   std::vector<int> surfaceMasses;   // Indices of surface masses in mass list
@@ -37,13 +27,12 @@ protected:
   double time;                      // Time of state currently stored in masses
   MultiStateRK4solver solver;       // ODE solver
 
-  // Maps an index of a mass to the normal vector of the surface the mass
-  // currently has resting contact with.
-  std::unordered_map<int, Surface> restCollisions;
+  // List of pairs storing the index of a mass and the properties of a surface
+  // the mass is currently resting on.
+  std::list<std::pair<int, Surface>> restCollisions;
 
 
   void initSolver(const VecList& state=VecList());
-  virtual void approximateCOM(const VecList& state) = 0;
 
 public:
   SoftBody(double time=0.0);
@@ -57,15 +46,15 @@ public:
   const std::vector<int>& getSurfaceMassIndices() const;
   double getBoundingRadius() const;
   void ode(VecList& rate, const VecList& state, double time);
-  void handleCollision(double tColl, const RigidRectPrism* rigidBody,
-                       int massIndex, int faceIndex, double e);
+  void handleCollision(double tColl, Vector& collPoint, const Surface& surface,
+                       int massIndex, double e);
 
-  void updateRestCollisions();
   const VecList& calculateUpdatedState(double time, int RK4iterations);
   void resetStateBuffer();
-  void flushStateBuffer();
+  void updateRestCollisions();
+  void update();
 
-  virtual const Vector& getCenterOfMass() const = 0;
+  virtual Vector getCenterOfMass() const = 0;
 };
 
 
@@ -73,7 +62,8 @@ public:
  * @brief Point mass used in the mass-spring structure of a soft body.
  */
 class Mass {
-  Vector state;    // Current state of mass; updated at end of time step
+  Vector state;     // Current state of mass; updated at end of time step
+  bool colliding;   // Whether the mass is currently colliding with something
 
 public:
   static const std::slice POS;  // Vector slice for the position of a mass state
@@ -83,6 +73,8 @@ public:
   const Vector& getState() const;
   Vector getPos() const;
   Vector getVel() const;
+  bool isColliding();
+  void isColliding(bool colliding);
   void update(const Vector& state);
 };
 

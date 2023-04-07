@@ -78,13 +78,16 @@ void CameraController::updateCamera() {
   }
 
   // Rotation
+  float speed = rotateSpeed;
   if(rotateDirection[0] != 0) {
-    float angle = rotateSpeed * rotateDirection[0];
+    if(rotateDirection[1] != 0) speed = sqrt(0.5*speed*speed);
+
+    float angle = speed * rotateDirection[0];
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0), angle, glm::vec3(0.0, 0.0, 1.0));
     camera->direction = glm::normalize(glm::mat3(rotation) * camera->direction);
   }
   if(rotateDirection[1] != 0) {
-    float angle = rotateSpeed * rotateDirection[1];
+    float angle = speed * rotateDirection[1];
     glm::vec3 axis = glm::cross(camera->direction, glm::vec3{0.0, 0.0, 1.0});
     glm::mat4 rotation = glm::rotate(glm::mat4(1.0), angle, axis);
     camera->direction = glm::normalize(glm::mat3(rotation) * camera->direction);

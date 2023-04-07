@@ -11,25 +11,17 @@ SoftCube::SoftCube(double mass) : SoftBody() {
 }
 
 SoftCube::SoftCube(const SoftCube& cube) : SoftBody(cube) {
+  this->centerMass = cube.centerMass;
   for(int i=0; i<8; i++)
-    cornerMasses[i] = cube.cornerMasses[i];
-}
-
-const Vector& SoftCube::getCenterOfMass() const {
-  return centerOfMass;
+    this->cornerMasses[i] = cube.cornerMasses[i];
 }
 
 /**
- * @brief  Approximates the cube's center of mass by calculating the average
- *         position of the 8 vertex masses.
- *
- * @param  state  State used to calculate the center of mass.
+ * @brief Returns the center of mass which is approximated by taking the
+ *        position of the mass located in the center of the cube.
  */
-void SoftCube::approximateCOM(const VecList& state) {
-  centerOfMass = (state[cornerMasses[0]][Mass::POS] + state[cornerMasses[1]][Mass::POS] +
-                  state[cornerMasses[2]][Mass::POS] + state[cornerMasses[3]][Mass::POS] +
-                  state[cornerMasses[4]][Mass::POS] + state[cornerMasses[5]][Mass::POS] +
-                  state[cornerMasses[6]][Mass::POS] + state[cornerMasses[7]][Mass::POS]) / 8;
+Vector SoftCube::getCenterOfMass() const {
+  return masses[centerMass].getPos();
 }
 
 
@@ -630,9 +622,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   springs.shrink_to_fit();
   surfaceMasses.shrink_to_fit();
 
-  massRadii      = cellSize/5;
-  boundingRadius = 1.2*vecNorm(Vector(sideLengths/2, 3));
-
+  massRadii       = cellSize/5;
+  boundingRadius  = 1.2*vecNorm(Vector(sideLengths/2, 3));
   cornerMasses[0] = cells[1][1][1].lll;
   cornerMasses[1] = cells[1][1][cellsPerAxis].llh;
   cornerMasses[2] = cells[1][cellsPerAxis][1].lhl;
@@ -642,10 +633,15 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   cornerMasses[6] = cells[cellsPerAxis][cellsPerAxis][1].hhl;
   cornerMasses[7] = cells[cellsPerAxis][cellsPerAxis][cellsPerAxis].hhh;
 
+  int centralCell = cellsPerAxis / 2;
+  if(cellsPerAxis%2 == 0)
+    centerMass = cells[centralCell][centralCell][centralCell].lll;
+  else
+    centerMass = cells[centralCell][centralCell][centralCell].center;
+
   VecList state(masses.size());
   getState(state);
   initSolver(state);
-  approximateCOM(state);
 
   return buildMesh(cells, cellsPerAxis, material);
 }

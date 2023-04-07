@@ -1,9 +1,9 @@
 #include "vector.h"
 
 
-double vecDot(const Vector& u, const Vector& v)   {return (u * v).sum();}
-double vecNorm(const Vector& v)                   {return sqrt(vecDot(v, v));}
-Vector normalize(const Vector& v)                 {return v / vecNorm(v);}
+double vecDot(const Vector& u, const Vector& v)   { return (u * v).sum();      }
+double vecNorm(const Vector& v)                   { return sqrt(vecDot(v, v)); }
+Vector normalize(const Vector& v)                 { return v / vecNorm(v);     }
 Vector vecCross(const Vector& u, const Vector& v) {
   return Vector{u[1]*v[2] - u[2]*v[1],  u[2]*v[0] - u[0]*v[2],  u[0]*v[1] - u[1]*v[0]};
 }

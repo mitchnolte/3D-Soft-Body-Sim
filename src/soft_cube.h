@@ -48,6 +48,7 @@ typedef std::vector<std::vector<std::vector<CubeCell>>> CubeCellGrid;
  */
 class SoftCube : public SoftBody {
   int cornerMasses[8];  // Indices of corner masses
+  int centerMass;       // Index of central mass
 
 
   CubeCell buildCell(const Vector& cellCenter, CubeCell& cellX, CubeCell& cellY,
@@ -60,14 +61,12 @@ class SoftCube : public SoftBody {
   void duplicateVertex(std::vector<GLfloat>& vertices, std::vector<GLuint>& indices,
                        std::vector<GLuint>& massIndices, GLuint i);
 
-  void approximateCOM(const VecList& state); 
-
 public:
   SoftCube(double mass=1);
   SoftCube(const SoftCube& cube);
   SoftBodyMesh buildStructure(const Vector& position=Vector(3), double size=1, int cellsPerAxis=3,
                               double k=10, double c=0.2, const Material& material={{1,0,0,1}, 1});
-  const Vector& getCenterOfMass() const;
+  Vector getCenterOfMass() const;
 };
 
 #endif

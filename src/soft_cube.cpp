@@ -1,14 +1,11 @@
 #include "soft_cube.h"
-#include "soft_body.h"
 
 
 /**
  * @brief  Soft body cube constructor.
  * @param  mass  Mass of the cube.
  */
-SoftCube::SoftCube(double mass) : SoftBody() {
-  this->mass = mass;
-}
+SoftCube::SoftCube() : SoftBody() {}
 
 SoftCube::SoftCube(const SoftCube& cube) : SoftBody(cube) {
   this->centerMass = cube.centerMass;
@@ -596,15 +593,6 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
         if(x == cellsPerAxis || y == cellsPerAxis || z == cellsPerAxis)
           surfaceMasses.push_back(cells[x][y][z].hhh);
 
-        // Connect center masses of adjacent cells
-        // if(x != 1) {
-        //   springs.emplace_back(cells[x-1][y][z].center, cells[x][y][z].center, k, c, cellSize);
-        // }if(y != 1) {
-        //   springs.emplace_back(cells[x][y-1][z].center, cells[x][y][z].center, k, c, cellSize);
-        // }if(z != 1) {
-        //   springs.emplace_back(cells[x][y][z-1].center, cells[x][y][z].center, k, c, cellSize);
-        // }
-
         cellCenter[2] += cellSize;        // Increment cell z position 
       }
       cellCenter[2] = firstCellCenter[2]; // Reset cell z position
@@ -622,7 +610,6 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   springs.shrink_to_fit();
   surfaceMasses.shrink_to_fit();
 
-  massRadii       = cellSize/5;
   boundingRadius  = 1.2*vecNorm(Vector(sideLengths/2, 3));
   cornerMasses[0] = cells[1][1][1].lll;
   cornerMasses[1] = cells[1][1][cellsPerAxis].llh;

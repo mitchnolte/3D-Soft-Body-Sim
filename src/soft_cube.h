@@ -2,7 +2,6 @@
 #define SOFT_CUBE_H
 
 #include <GL/glew.h>
-#include <utility>
 #include <vector>
 #include "soft_body.h"
 #include "mesh.h"
@@ -62,7 +61,7 @@ class SoftCube : public SoftBody {
                        std::vector<GLuint>& massIndices, GLuint i);
 
 public:
-  SoftCube(double mass=1);
+  SoftCube();
   SoftCube(const SoftCube& cube);
   SoftBodyMesh buildStructure(const Vector& position=Vector(3), double size=1, int cellsPerAxis=3,
                               double k=10, double c=0.2, const Material& material={{1,0,0,1}, 1});

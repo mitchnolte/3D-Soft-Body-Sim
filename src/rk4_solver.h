@@ -2,7 +2,6 @@
 #define RK4_SOLVER_H
 
 #include <functional>
-#include <unordered_map>
 #include "vector.h"
 
 typedef std::function< void (Vector&,  const Vector&,  double) >  ODEfn;
@@ -31,7 +30,7 @@ public:
 
 /**
  * @brief Solves a system of ordinary differential equations using the
- *        fourth-order Runge-Kutta method for a list of state vectors.
+ *        fourth-order Runge-Kutta method for a collection of state vectors.
  */
 class MultiStateRK4solver {
   MultiStateODEfn f;  // ODE function that returns rate vectors

@@ -1,11 +1,6 @@
 #include "soft_body.h"
 #include "rigid_body.h"
-#include "collision_data.h"
 
-
-/*******************************************************************************
- *  SOFT BODY
- ******************************************************************************/
 
 SoftBody::SoftBody(double time) {
   this->time = time;
@@ -15,8 +10,6 @@ SoftBody::SoftBody(const SoftBody& softBody) {
   this->masses         = softBody.masses;
   this->springs        = softBody.springs;
   this->surfaceMasses  = softBody.surfaceMasses;
-  this->mass           = softBody.mass;
-  this->massRadii      = softBody.massRadii;
   this->boundingRadius = softBody.boundingRadius;
   this->time           = softBody.time;
   this->solver         = softBody.solver;
@@ -32,20 +25,15 @@ SoftBody::SoftBody(const SoftBody& softBody) {
  * @param  springs         Springs holding the masses together.
  * @param  surfaceMasses   Indices of the masses on the surface of the body.
  * @param  boundingRadius  Radius of the bounding sphere for collision.
- * @param  mass            Mass of the soft body.
- * @param  massRadii       Radius of point masses; for internal collision.
  * @param  time            Time of current state.
  */
 SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-                   const std::vector<int>& surfaceMasses, double boundingRadius, double mass,
-                   double massRadii, double time)
+                   const std::vector<int>& surfaceMasses, double boundingRadius, double time)
 {
   this->masses         = masses;
   this->springs        = springs;
   this->surfaceMasses  = surfaceMasses;
   this->boundingRadius = boundingRadius;
-  this->mass           = mass;
-  this->massRadii      = massRadii;
   this->time           = time;
 
   VecList state(masses.size());
@@ -54,6 +42,10 @@ SoftBody::SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& s
 }
 
 
+/**
+ * @brief  Binds the ODE function to the RK4 solver and sets the state if given.
+ * @param  state  Initial state for RK4 solver.
+ */
 void SoftBody::initSolver(const VecList& state) {
   if(state.size() != 0)
     solver.setState(state);
@@ -102,10 +94,9 @@ void SoftBody::ode(VecList& rate, const VecList& state, double time) {
   // Spring forces
   for(Spring& spring : springs) {
     std::pair<int, int> sMasses = spring.getMassIndices();
-    const Vector& force = spring.calculateForce(state[sMasses.first],
-                                                state[sMasses.second], massRadii);
-    rate[sMasses.first]  += force;
-    rate[sMasses.second] -= force;
+    Vector force = spring.calculateForce(state[sMasses.first], state[sMasses.second]);
+    rate[sMasses.first][Mass::VEL]  += force;
+    rate[sMasses.second][Mass::VEL] -= force;
   }
 
   // Resting contact
@@ -168,7 +159,6 @@ void SoftBody::handleCollision(double tColl, Vector& collPoint, const Surface& s
   masses[massIndex].update(massStateColl);
 
   // Initiate resting contact
-  masses[massIndex].isColliding(true);
   restCollisions.push_back(std::make_pair(massIndex, surface));
 }
 
@@ -231,15 +221,12 @@ Mass::Mass(Vector pos, Vector vel) {
   this->state      = Vector(6);
   this->state[POS] = pos;
   this->state[VEL] = vel;
-  this->colliding  = false;
 }
 
-const Vector& Mass::getState() const   { return state;                }
-Vector Mass::getPos() const            { return state[POS];           }
-Vector Mass::getVel() const            { return state[VEL];           }
-bool Mass::isColliding()               { return colliding;            }
-void Mass::isColliding(bool colliding) { this->colliding = colliding; }
-void Mass::update(const Vector& state) { this->state     = state;     }
+const Vector& Mass::getState() const   { return state;        }
+Vector Mass::getPos() const            { return state[POS];   }
+Vector Mass::getVel() const            { return state[VEL];   }
+void Mass::update(const Vector& state) { this->state = state; }
 
 
 /*******************************************************************************
@@ -259,37 +246,19 @@ const std::pair<int, int>& Spring::getMassIndices() const {
 
 
 /**
- * @brief  Calculates the force exerted on the masses on either end of the
- *         spring and checks if they have collided.
+ * @brief  Calculates the force exerted on the masses connected to either end of
+ *         the spring.
  *
  * @param  m1State    State of the first mass attached to the spring.
  * @param  m2State    State of the second mass attached to the spring.
- * @param  massRadii  Radius of the masses for collision detection.
- *
- * @return Rate vector for spring force and collision.
  */
-Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State, double massRadii) {
-  Vector dState(6);
-
-  // Relative velocity and direction
+Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State) {
   Vector velocity  = m1State[Mass::VEL] - m2State[Mass::VEL];
   Vector direction = m1State[Mass::POS] - m2State[Mass::POS];
 
-  double length      = vecNorm(direction);              // Spring length
-  Vector u           = direction / length;              // Unit length direction
-  double deformation = length - restLen;                // Spring deformation
-  dState[Mass::VEL]  = -k*deformation*u - c*velocity;   // Spring force
+  double length      = vecNorm(direction);
+  Vector u           = direction / length;
+  double deformation = length - restLen;
 
-  // Internal mass collision
-  // if(length <= 2*massRadii) {
-  //   printf("internal collision\n");
-  //   double velU = vecDot(velocity, u);
-  //   if(velU > 0) {
-  //     // dState[Mass::POS] = 2.0 * u * velU;
-  //     // printf("%f, %f, %f\n", dState[0], dState[1], dState[2]);
-  //   }
-  //   dState[Mass::POS] = u / (length * length);
-  // }
-
-  return dState;
+  return -k*deformation*u - c*velocity;
 }

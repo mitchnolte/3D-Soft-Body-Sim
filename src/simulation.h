@@ -1,8 +1,7 @@
 #ifndef SIMULATION_H
 #define SIMULATION_H
 
-#include <unordered_set>
-#include "vector.h"
+#include <vector>
 class SoftBody;
 class SoftCube;
 class RigidBody;

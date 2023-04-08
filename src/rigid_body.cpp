@@ -116,15 +116,15 @@ const Quad* RigidRectPrism::getFaces() const {
 
 
 /**
- * @brief Builds a display mesh to represent the prism.
+ * @brief  Builds a display mesh to represent the prism.
+ * @param  material  Material properties of the mesh.
  */
-Mesh RigidRectPrism::buildMesh() {
+Mesh RigidRectPrism::buildMesh(const Material& material) {
   int numV = 72;    // 6 faces * 4 vertices per face * 3 coordinates per vertex
   int numI = 36;    // 6 faces * 2 triangles per face * 3 indices per triangle
   GLfloat meshVertices[numV];
   GLfloat meshNormals[numV];
   GLuint  meshIndices[numI];
-  Material material = {{0.5, 0.5, 0.5, 1.0}, 0.2};
 
   for(int i=0; i<6; i++) {
     int* faceIndices = faces[i].vertices;

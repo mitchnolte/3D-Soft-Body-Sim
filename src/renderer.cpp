@@ -20,7 +20,10 @@ Renderer::~Renderer() {
   }
 }
 
-
+/**
+ * @brief Initializes key bindings and other parameters of the camera
+ *        controller.
+ */
 void Renderer::initializeCamController() {
   camController.bindCamera(camera);
   camController.setTimeStep(1/fps);
@@ -101,7 +104,7 @@ void Renderer::handleKeyInput(int key, int action) {
 
 
 /**
- * @brief Render the simulation.
+ * @brief Renders the simulation.
  */
 void Renderer::display() {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

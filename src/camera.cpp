@@ -1,5 +1,6 @@
-#include "camera.h"
+#define GLM_FORCE_RADIANS
 #include <glm/gtc/matrix_transform.hpp>
+#include "camera.h"
 
 
 Camera::Camera() {}
@@ -20,6 +21,12 @@ void Camera::setDirection(const glm::vec3& direction) {
   this->direction = direction;
 }
 
+/**
+ * @brief  Updates the perspective projection with the given parameters.
+ *
+ * @param  aspectRatio  Aspect ratio.
+ * @param  fov          Field of view.
+ */
 void Camera::setPerspective(float aspectRatio, float fov) {
   if(fov != 0) {
     this->fov = fov;
@@ -53,6 +60,7 @@ CameraController::CameraController(float dt, float moveSpeed, float rotateSpeed)
 void CameraController::setTimeStep(float dt) {
   moveSpeed   = dt * moveSpeed/this->dt;
   rotateSpeed = dt * rotateSpeed/this->dt;
+  this->dt = dt;
 }
 
 void CameraController::bindCamera(Camera& camera) {
@@ -67,6 +75,11 @@ void CameraController::rotateCamera(const glm::vec3& direction) {
   rotateDirection += glm::vec2(direction);
 }
 
+
+/**
+ * @brief Updates the position and direction of the camera by the amount they
+ *        should change in one frame.
+ */
 void CameraController::updateCamera() {
 
   // Movement

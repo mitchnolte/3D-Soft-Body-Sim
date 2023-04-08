@@ -11,6 +11,16 @@
 
 Mesh::Mesh() {}
 
+/**
+ * @brief  Mesh constructor.
+ * 
+ * @param  vertices  Vertex positions.
+ * @param  normals   Vertex normals.
+ * @param  indices   Vertex indices.
+ * @param  numV      Number of vertices.
+ * @param  numI      Number of indices.
+ * @param  material  Material properties of the mesh.
+ */
 Mesh::Mesh(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, int numI,
            const Material& material)
 {
@@ -34,7 +44,8 @@ void Mesh::triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloa
 
 
 /**
- * @brief  Computes the normal vectors for a mesh.
+ * @brief  Computes the normal vectors for a mesh. Vectors are not averaged or
+ *         normalized since they are already normalized by OpenGL.
  *
  * @param  normals   Destination array. Each entry should be initialized to 0.
  * @param  vertices  Array of vertex coordinates.
@@ -67,6 +78,15 @@ void Mesh::computeNormals(GLfloat normals[], GLfloat vertices[], GLuint indices[
 }
 
 
+/**
+ * @brief  Loads the given mesh data into OpenGL.
+ * 
+ * @param  vertices  Vertex positions.
+ * @param  normals   Vertex normals.
+ * @param  indices   Vertex indices.
+ * @param  numV      Number of vertices.
+ * @param  numI      Number of indices.
+ */
 void Mesh::loadVertexData(GLfloat vertices[], GLfloat normals[], GLuint indices[],
                           int numV, int numI)
 {
@@ -103,7 +123,7 @@ void Mesh::setMaterial(const Material& material) {
 
 
 /**
- * @brief  Sends the mesh's vertex data to OpenGL for displaying.
+ * @brief  Sends the mesh's vertex data to OpenGL for rendering.
  * @param  program  Shader program.
  */
 void Mesh::sendVertexData(GLuint program) {
@@ -118,7 +138,7 @@ void Mesh::sendVertexData(GLuint program) {
 
 
 /**
- * @brief  Displays the mesh.
+ * @brief  Renders the mesh.
  * 
  * @param  shaderProgram   Shader program identifier.
  * @param  viewProjection  viewProjection matrix from camera.
@@ -143,6 +163,16 @@ void Mesh::display(GLuint shaderProgram, const glm::mat4& viewProjection) {
 
 SoftBodyMesh::SoftBodyMesh() {}
 
+/**
+ * @brief  Soft body mesh constructor.
+ * 
+ * @param  vertices  Vertex positions.
+ * @param  normals   Vertex normals.
+ * @param  indices   Vertex indices.
+ * @param  numV      Number of vertices.
+ * @param  numI      Number of indices.
+ * @param  material  Material properties of the mesh.
+ */
 SoftBodyMesh::SoftBodyMesh(GLfloat vertices[], GLfloat normals[], GLuint indices[],
                            const std::vector<GLuint>& massIndices,
                            int numV, int numI, const Material& material)
@@ -152,6 +182,14 @@ SoftBodyMesh::SoftBodyMesh(GLfloat vertices[], GLfloat normals[], GLuint indices
   this->massIndices = massIndices;
 }
 
+/**
+ * @brief  Binds a soft body to the mesh. The bound soft body's mass positions
+ *         are used to update the mesh each frame. The given pointer must point
+ *         to the copy of the soft body stored in the simulation, otherwise it
+ *         will be invalid.
+ *
+ * @param  body  Soft body represented by the mesh.
+ */
 void SoftBodyMesh::bindBody(const SoftBody* body) {
   this->body = body;
 }

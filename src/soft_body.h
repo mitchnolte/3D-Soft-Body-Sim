@@ -21,8 +21,6 @@ protected:
   std::vector<Mass> masses;
   std::vector<Spring> springs;
   std::vector<int> surfaceMasses;   // Indices of surface masses in mass list
-  double mass;                      // Overall body mass
-  double massRadii;                 // Radius of a single point mass for internal collision
   double boundingRadius;            // Radius of bounding sphere for collision detection
   double time;                      // Time of state currently stored in masses
   MultiStateRK4solver solver;       // ODE solver
@@ -38,8 +36,7 @@ public:
   SoftBody(double time=0.0);
   SoftBody(const SoftBody& softBody);
   SoftBody(const std::vector<Mass>& masses, const std::vector<Spring>& springs,
-           const std::vector<int>& surfaceMasses, double boundingRadius,
-           double mass, double massRadii, double time=0.0);
+           const std::vector<int>& surfaceMasses, double boundingRadius, double time=0.0);
 
   void getState(VecList& state) const;
   const std::vector<Mass>& getMasses() const;
@@ -62,8 +59,7 @@ public:
  * @brief Point mass used in the mass-spring structure of a soft body.
  */
 class Mass {
-  Vector state;     // Current state of mass; updated at end of time step
-  bool colliding;   // Whether the mass is currently colliding with something
+  Vector state;   // Current state of mass; updated at end of time step
 
 public:
   static const std::slice POS;  // Vector slice for the position of a mass state
@@ -73,8 +69,6 @@ public:
   const Vector& getState() const;
   Vector getPos() const;
   Vector getVel() const;
-  bool isColliding();
-  void isColliding(bool colliding);
   void update(const Vector& state);
 };
 
@@ -92,7 +86,7 @@ class Spring {
 public:
   Spring(int mass1, int mass2, double k, double c, double restLen);
   const std::pair<int, int>& getMassIndices() const;
-  Vector calculateForce(const Vector& m1State, const Vector& m2State, double massRadii);
+  Vector calculateForce(const Vector& m1State, const Vector& m2State);
 };
 
 #endif

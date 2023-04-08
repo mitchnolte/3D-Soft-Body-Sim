@@ -75,7 +75,7 @@ void buildSimulation() {
   float     backgroundColor[3] = { 0.0,  0.0,  0.0};
   float     lightColor[3]      = { 1.0,  1.0,  1.0};
   float     lightPosition[3]   = {-300, -700,  500};
-  glm::vec3 camPosition        = { 4.0, -8.0, -2.0};
+  glm::vec3 camPosition        = { 4.0, -8.0, -3.0};
   glm::vec3 camDirection       = {-0.2,  1.0, -0.3};
 
   Vector   cubePos   = {0.0, 0.0, 0.0};      // Position
@@ -99,6 +99,7 @@ void buildSimulation() {
   double   rect4Angle = 0.0;
   double   rect5Angle = 1.57;
   Vector   yAxis      = {0.0, 1.0, 0.0};
+  Material rectMat    = {{0.4, 0.4, 0.4, 1.0}, 0.2};
 
   // Soft body
   SoftCube cube;
@@ -124,11 +125,11 @@ void buildSimulation() {
                      {   lightColor[0],    lightColor[1],    lightColor[2], 0}});
   renderer.initializeCamera(camPosition, camDirection, FOV, WIN_WIDTH/WIN_HEIGHT);
   renderer.addMesh(cubeMesh);
-  renderer.addMesh(rect1.buildMesh());
-  renderer.addMesh(rect2.buildMesh());
-  renderer.addMesh(rect3.buildMesh());
-  renderer.addMesh(rect4.buildMesh());
-  renderer.addMesh(rect5.buildMesh());
+  renderer.addMesh(rect1.buildMesh(rectMat));
+  renderer.addMesh(rect2.buildMesh(rectMat));
+  renderer.addMesh(rect3.buildMesh(rectMat));
+  renderer.addMesh(rect4.buildMesh(rectMat));
+  renderer.addMesh(rect5.buildMesh(rectMat));
 }
 
 
@@ -156,6 +157,7 @@ DWORD WINAPI runSimulation(LPVOID args) {
   simulationRunning = true;
   while(simulationRunning) {
 
+    // Advance simulation forward
     startTime = steady_clock::now();
     sim.update();
     updates++;
@@ -170,13 +172,13 @@ DWORD WINAPI runSimulation(LPVOID args) {
         printf("%.1f\n", stepRate);
     }
 
-    // Sleep until next update time
+    // Wait for next update time
     sleepTime.QuadPart = -duration_cast<SleepTime>(updateDuration - (endTime - startTime)).count();
     SetWaitableTimer(timer, &sleepTime, 0, NULL, NULL, FALSE);
     WaitForSingleObject(timer, INFINITE);
   }
-  timeEndPeriod(1);
 
+  timeEndPeriod(1);
   CloseHandle(timer);
   return 0;
 }
@@ -219,9 +221,7 @@ int main() {
   glEnable(GL_DEPTH_TEST);
   glViewport(0, 0, WIN_WIDTH, WIN_HEIGHT);
   glfwSwapInterval(1);
-  GLuint program = buildProgram(buildShader(GL_VERTEX_SHADER, "vertex_shader.vs"),
-                                buildShader(GL_FRAGMENT_SHADER, "fragment_shader.fs"), 0);
-  renderer.setProgram(program);
+  renderer.setProgram(buildShaderProgram());
 
   // Initialize simulation
   displayStepRate = false;

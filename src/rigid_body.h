@@ -3,8 +3,9 @@
 
 #include "vector.h"
 class SoftBody;
-class Mesh;
 class Collision;
+class Mesh;
+struct Material;
 
 
 /**
@@ -22,7 +23,7 @@ public:
   double getBoundingRadius() const;
   const std::pair<double, double>& getFrictionCoefficients() const;
 
-  virtual Mesh buildMesh() = 0;
+  virtual Mesh buildMesh(const Material& material) = 0;
   virtual void detectCollisions(std::vector<Collision*>& collisions, SoftBody* softBody,
                                 const VecList& state, double tStart, double dt) = 0;
 };
@@ -57,7 +58,7 @@ public:
                  double staticFriction=0.3, double kineticFriction=0.1);
   const Vector* getVertices() const;
   const Quad* getFaces() const;
-  Mesh buildMesh();
+  Mesh buildMesh(const Material& material);
   void detectCollisions(std::vector<Collision*>& collisions, SoftBody* softBody,
                         const VecList& state, double tStart, double dt);
 };

@@ -1,5 +1,7 @@
 #include <cstdlib>
+#include <unordered_set>
 #include "simulation.h"
+#include "vector.h"
 #include "soft_body.h"
 #include "soft_cube.h"
 #include "rigid_body.h"

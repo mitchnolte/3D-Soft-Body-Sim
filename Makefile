@@ -1,13 +1,13 @@
 TARGET   := build/Softbody
-OBjECTS  := src/main.o src/renderer.o src/camera.o src/mesh.o\
+OBJECTS  := src/main.o src/renderer.o src/camera.o src/mesh.o\
             src/simulation.o src/vector.o src/rk4_solver.o src/soft_body.o\
 					  src/soft_cube.o src/rigid_body.o src/collision_data.o
 LIBS     := -lglfw3dll -lglew32 -lglu32 -lopengl32 -lm -lwinmm
 FLAGS    := -static-libgcc -static-libstdc++
 
 
-$(TARGET): $(OBjECTS)
-	$(CXX) -o $(TARGET) $(OBjECTS) $(LIBS) $(FLAGS)
+$(TARGET): $(OBJECTS)
+	$(CXX) -o $(TARGET) $(OBJECTS) $(LIBS) $(FLAGS)
 
 src/main.o: src/shaders.h src/renderer.h src/mesh.h src/simulation.h\
             src/soft_body.h src/soft_cube.h src/rigid_body.h
@@ -26,4 +26,4 @@ src/rigid_body.o:     src/rigid_body.h src/soft_body.h src/vector.h\
 src/collision_data.o: src/collision_data.h src/soft_body.h src/vector.h
 
 clean:
-	rm $(TARGET).exe $(OBjECTS)
+	rm $(TARGET).exe $(OBJECTS)

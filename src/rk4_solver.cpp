@@ -11,22 +11,14 @@ RK4solver::RK4solver(ODEfn f, const Vector& state, double time) {
   this->time = time;
 }
 
-void RK4solver::setODEfunction(ODEfn odeFunction) {
-  f = odeFunction;
-}
-
 void RK4solver::setState(const Vector& state, double time) {
   if(time >= 0.0) this->time = time;
   this->state = state;
 }
 
-double RK4solver::getTime() const {
-  return time;
-}
-
-const Vector& RK4solver::getState() const {
-  return state;
-}
+void RK4solver::setODEfunction(ODEfn odeFunction) { f = odeFunction; }
+double RK4solver::getTime() const                 { return time;     }
+const Vector& RK4solver::getState() const         { return state;    }
 
 
 const Vector& RK4solver::integrate(double time, int steps) {
@@ -63,6 +55,8 @@ const Vector& RK4solver::integrate(double time, int steps) {
 }
 
 
+
+
 /*******************************************************************************
  *  MULTI-STATE SOLVER
  ******************************************************************************/
@@ -81,10 +75,6 @@ MultiStateRK4solver::MultiStateRK4solver(MultiStateODEfn f, const VecList& state
   this->k4 = VecList(state.size(), Vector(state[0].size()));
 }
 
-void MultiStateRK4solver::setODEfunction(MultiStateODEfn odeFunction) {
-  f = odeFunction;
-}
-
 void MultiStateRK4solver::setState(const VecList& state, double time) {
   if(time >= 0.0) this->time = time;
   this->state = state;
@@ -101,17 +91,13 @@ void MultiStateRK4solver::setSingleState(int index, const Vector& state) {
   this->state[index] = state;
 }
 
-double MultiStateRK4solver::getTime() const {
-  return time;
-}
-
-const VecList& MultiStateRK4solver::getState() const {
-  return state;
-}
+void MultiStateRK4solver::setODEfunction(MultiStateODEfn odeFunction) { f = odeFunction; }
+double MultiStateRK4solver::getTime() const                           { return time;     }
+const VecList& MultiStateRK4solver::getState() const                  { return state;    }
 
 
 const VecList& MultiStateRK4solver::integrate(double time, int steps) {
-  if(time <= this->time)
+  if(time - this->time < 1e-5)
     return state;
 
   double t = this->time;

@@ -46,6 +46,7 @@ public:
   void addMesh(const Mesh& mesh);
   void addMesh(const SoftBodyMesh& mesh);
   void handleKeyInput(int key, int action);
+  void handleMouseInput(double x, double y);
   void display();
 };
 

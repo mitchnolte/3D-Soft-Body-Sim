@@ -63,17 +63,9 @@ void SoftBody::getState(VecList& state) const {
     state[i] = masses[i].getState();
 }
 
-const std::vector<Mass>& SoftBody::getMasses() const {
-  return masses;
-}
-
-const std::vector<int>& SoftBody::getSurfaceMassIndices() const {
-  return surfaceMasses;
-}
-
-double SoftBody::getBoundingRadius() const {
-  return boundingRadius;
-}
+const std::vector<Mass>& SoftBody::getMasses() const            { return masses; }
+const std::vector<int>& SoftBody::getSurfaceMassIndices() const { return surfaceMasses; }
+double SoftBody::getBoundingRadius() const                      { return boundingRadius; }
 
 
 /**
@@ -102,7 +94,7 @@ void SoftBody::ode(VecList& rate, const VecList& state, double time) {
   // Resting contact
   for(const auto& coll : restCollisions) {
     Vector&        massRate   = rate[coll.first];
-    const Surface& surface    = coll.second;                 // Surface the mass is in contact with
+    const Surface& surface    = coll.second;                 // Surface the mass is resting on
     const Vector&  normalV    = *surface.normal;             // Normal vector of surface
     Vector         dPos       = massRate[Mass::POS];         // Change in position
     Vector         force      = massRate[Mass::VEL];         // Force on mass
@@ -210,6 +202,8 @@ void SoftBody::update() {
 }
 
 
+
+
 /*******************************************************************************
  *  MASS
  ******************************************************************************/
@@ -229,10 +223,21 @@ Vector Mass::getVel() const            { return state[VEL];   }
 void Mass::update(const Vector& state) { this->state = state; }
 
 
+
+
 /*******************************************************************************
  *  SPRING
  ******************************************************************************/
 
+/**
+ * @brief  Spring constructor.
+ *
+ * @param  mass1    First mass connected to spring.
+ * @param  mass2    Second mass connected to spring.
+ * @param  k        Spring coefficient.
+ * @param  c        Damping coefficient.
+ * @param  restLen  Rest length of the spring.
+ */
 Spring::Spring(int mass1, int mass2, double k, double c, double restLen) {
   this->masses  = std::make_pair(mass1, mass2);
   this->k       = k;
@@ -251,14 +256,15 @@ const std::pair<int, int>& Spring::getMassIndices() const {
  *
  * @param  m1State    State of the first mass attached to the spring.
  * @param  m2State    State of the second mass attached to the spring.
+ *
+ * @return Force vector.
  */
 Vector Spring::calculateForce(const Vector& m1State, const Vector& m2State) {
-  Vector velocity  = m1State[Mass::VEL] - m2State[Mass::VEL];
-  Vector direction = m1State[Mass::POS] - m2State[Mass::POS];
-
+  Vector velocity    = m1State[Mass::VEL] - m2State[Mass::VEL];
+  Vector direction   = m1State[Mass::POS] - m2State[Mass::POS];
   double length      = vecNorm(direction);
-  Vector u           = direction / length;
+  Vector d           = direction / (length>0.0? length : 1e-8);
   double deformation = length - restLen;
 
-  return -k*deformation*u - c*velocity;
+  return -k*deformation*d - c*velocity;
 }

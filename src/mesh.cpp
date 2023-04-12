@@ -5,10 +5,6 @@
 #include "soft_body.h"
 
 
-/*******************************************************************************
- *  MESH
- ******************************************************************************/
-
 Mesh::Mesh() {}
 
 /**
@@ -27,6 +23,7 @@ Mesh::Mesh(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, in
   loadVertexData(vertices, normals, indices, numV, numI);
   setMaterial(material);
 }
+
 
 /**
  * @brief  Calculates the normal vector of a triangle with the 3 given points.
@@ -157,11 +154,14 @@ void Mesh::display(GLuint shaderProgram, const glm::mat4& viewProjection) {
 }
 
 
+
+
 /*******************************************************************************
  *  SOFT BODY MESH
  ******************************************************************************/
 
 SoftBodyMesh::SoftBodyMesh() {}
+
 
 /**
  * @brief  Soft body mesh constructor.
@@ -182,6 +182,7 @@ SoftBodyMesh::SoftBodyMesh(GLfloat vertices[], GLfloat normals[], GLuint indices
   this->massIndices = massIndices;
 }
 
+
 /**
  * @brief  Binds a soft body to the mesh. The bound soft body's mass positions
  *         are used to update the mesh each frame. The given pointer must point
@@ -193,6 +194,7 @@ SoftBodyMesh::SoftBodyMesh(GLfloat vertices[], GLfloat normals[], GLuint indices
 void SoftBodyMesh::bindBody(const SoftBody* body) {
   this->body = body;
 }
+
 
 /**
  * @brief Updates the mesh's vertex positions and recalculates the normal

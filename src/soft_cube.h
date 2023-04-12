@@ -46,12 +46,15 @@ typedef std::vector<std::vector<std::vector<CubeCell>>> CubeCellGrid;
  *        each other mass.
  */
 class SoftCube : public SoftBody {
-  int cornerMasses[8];  // Indices of corner masses
   int centerMass;       // Index of central mass
 
 
   CubeCell buildCell(const Vector& cellCenter, CubeCell& cellX, CubeCell& cellY,
-                     CubeCell& cellZ, double cellSize, double k, double c);
+                     CubeCell& cellZ, double cellSize);
+
+  void addSpring(int mass1, int mass2, double k, double c, double length);
+  void subdivideCell(CubeCellGrid& cells, int cellsPerAxis, double k, double c,
+                     int x=1, int y=1, int z=1);
 
   SoftBodyMesh buildMesh(const CubeCellGrid& cells, int cellsPerAxis, const Material& material);
   void getMeshIndices(std::vector<GLuint>& indices, std::vector<GLuint>& massIndices,
@@ -61,10 +64,9 @@ class SoftCube : public SoftBody {
                        std::vector<GLuint>& massIndices, GLuint i);
 
 public:
-  SoftCube();
-  SoftCube(const SoftCube& cube);
   SoftBodyMesh buildStructure(const Vector& position=Vector(3), double size=1, int cellsPerAxis=3,
                               double k=10, double c=0.2, const Material& material={{1,0,0,1}, 1});
+
   Vector getCenterOfMass() const;
 };
 

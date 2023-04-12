@@ -14,15 +14,8 @@
 #include "rigid_body.h"
 
 
-#define FULLSCREEN    0
-#if     FULLSCREEN == 1
-  #define WIN_WIDTH  1920.0
-  #define WIN_HEIGHT 1080.0
-#else
-  #define WIN_WIDTH  840
-  #define WIN_HEIGHT 840
-#endif
-
+#define WIN_WIDTH  840    // Windowed mode width
+#define WIN_HEIGHT 840    // Windowed mode height
 #define FOV        1.57   // Field of view (in radians; 90 degrees)
 #define FRAME_RATE 60     // Display frames per second
 #define STEP_RATE  60     // Simulation updates per second
@@ -32,6 +25,8 @@ Renderer   renderer(FRAME_RATE);
 Simulation sim(1.0/STEP_RATE, RK4_ITERS);
 bool       simulationRunning;             // Used to stop simulation thread
 bool       displayStepRate;               // Whether the simulation update rate should be printed
+int        winWidth;                      // Current window width
+int        winHeight;                     // Current window height
 
 
 /**
@@ -48,6 +43,8 @@ void framebufferSizeCallback(GLFWwindow* window, int width, int height) {
   if(height == 0) height = 1;
   glfwMakeContextCurrent(window);
   renderer.setViewport(width, height);
+  winWidth = width;
+  winHeight = height;
 }
 
 /**
@@ -65,41 +62,60 @@ void keyCallback(GLFWwindow* window, int key, int code, int action, int mods) {
   renderer.handleKeyInput(key, action);
 }
 
+/**
+ * @brief GLFW mouse cursor position callback.
+ */
+void mouseCallback(GLFWwindow* window, double x, double y) {
+  glfwSetCursorPos(window, 0, 0);
+  renderer.handleMouseInput(x, y);
+}
+
 
 /**
- * @brief Creates the objects for the simulation, passes their meshes to the
- *        renderer, and sets the camera, lighting, and background color
- *        parameters of the renderer.
+ * @brief  Creates the objects for the simulation, passes their meshes to the
+ *         renderer, and sets the camera, lighting, and background color
+ *         parameters of the renderer.
+ *
+ * @param  aspectRatio  Window aspect ratio used to initialize camera.
  */
-void buildSimulation() {
+void buildSimulation(float aspectRatio) {
   float     backgroundColor[3] = { 0.0,  0.0,  0.0};
   float     lightColor[3]      = { 1.0,  1.0,  1.0};
   float     lightPosition[3]   = {-300, -700,  500};
-  glm::vec3 camPosition        = { 4.0, -8.0, -3.0};
-  glm::vec3 camDirection       = {-0.2,  1.0, -0.3};
+  glm::vec3 camPosition        = { 2.0, -8.0, -2.0};
+  glm::vec3 camDirection       = { 0.0,  1.0, -0.3};
 
-  Vector   cubePos   = {0.0, 0.0, 0.0};      // Position
-  double   cubeSize  = 1.0;                  // Side length
-  int      cubeCPA   = 2;                    // Cells per axis (determines number of point masses)
-  double   k         = 3000;                 // Spring coefficient
-  double   c         = 1;                    // Damping coefficient
-  Material cubeMat   = {{1, 0, 0, 1}, 1};    // Color and reflectivity
+  Vector   cubePos  = {0.0, 0.0, 0.0};      // Position
+  double   cubeSize = 1.0;                  // Side length
+  int      cubeCPA  = 2;                    // Cells per axis (determines number of point masses)
+  double   k        = 1990;                 // Spring coefficient
+  double   c        = 0.8;                  // Damping coefficient
+  Material cubeMat  = {{1, 0, 0, 1}, 1};    // Color and reflectivity
 
-  Vector   rect1Pos   = {1.0, 0.0, -4.0};
-  Vector   rect2Pos   = rect1Pos + Vector{ 6.0,  0, -1.8};
-  Vector   rect3Pos   = rect2Pos + Vector{-2.1,  0, -2.5};
-  Vector   rect4Pos   = rect3Pos + Vector{-4.85, 0, -1.5};
-  Vector   rect5Pos   = rect4Pos + Vector{-3,    0,  2};
+  Vector   rect1Pos   = cubePos  + Vector{ 1.0,  0.0, -4.0};
+  Vector   rect2Pos   = rect1Pos + Vector{ 6.0,  0.0, -1.8};
+  Vector   rect3Pos   = rect2Pos + Vector{-2.1,  0.0, -2.5};
+  Vector   rect4Pos   = rect3Pos + Vector{-6.5,  0.0, -6.0};
+  Vector   rect5Pos   = rect4Pos + Vector{ 7.0, -1.0, -3.0};
+  Vector   rect6Pos   = rect5Pos + Vector{ 0.0, -5.0, -0.0};
+  Vector   rect7Pos   = rect6Pos + Vector{-7.0,  2.0, -2.0};
+  Vector   rect8Pos   = rect7Pos + Vector{ 5.0,  1.5, -7.0};
+  Vector   rect9Pos   = rect8Pos + Vector{ 5.0,  0.0,  0.0};
   double   rectLenX   = 5;
   double   rectLenY   = rectLenX;
   double   rectLenZ   = 1;
-  double   rect1Angle = 0.2;
-  double   rect2Angle = 1.57;
+  double   rect1Angle =  0.2;
+  double   rect2Angle =  1.57;
   double   rect3Angle = -0.2;
-  double   rect4Angle = 0.0;
-  double   rect5Angle = 1.57;
-  Vector   yAxis      = {0.0, 1.0, 0.0};
-  Material rectMat    = {{0.4, 0.4, 0.4, 1.0}, 0.2};
+  double   rect4Angle =  0.6;
+  double   rect5Angle = -0.8;
+  double   rect6Angle = -0.8;
+  double   rect7Angle =  1.57;
+  Vector   rect5Axis  = {-1.0, 0.8, 0.0};
+  Vector   rect6Axis  = { 1.0, 0.8, 0.0};
+  Vector   yAxis      = { 0.0, 1.0, 0.0};
+  Vector   xAxis      = { 1.0, 0.0, 0.0};
+  Material rectMat    = {{0.3, 0.3, 0.3, 1.0}, 0.2};
 
   // Soft body
   SoftCube cube;
@@ -112,30 +128,42 @@ void buildSimulation() {
   RigidRectPrism rect2(rect2Pos, rectLenX, rectLenY, rectLenZ, rect2Angle, yAxis);
   RigidRectPrism rect3(rect3Pos, rectLenX, rectLenY, rectLenZ, rect3Angle, yAxis);
   RigidRectPrism rect4(rect4Pos, rectLenX, rectLenY, rectLenZ, rect4Angle, yAxis);
-  RigidRectPrism rect5(rect5Pos, rectLenX, rectLenY, rectLenZ, rect5Angle, yAxis);
+  RigidRectPrism rect5(rect5Pos, rectLenX, rectLenY, rectLenZ, rect5Angle, rect5Axis);
+  RigidRectPrism rect6(rect6Pos, rectLenX, rectLenY, rectLenZ, rect6Angle, rect6Axis);
+  RigidRectPrism rect7(rect7Pos, rectLenX, rectLenY, rectLenZ, rect7Angle, yAxis);
+  RigidRectPrism rect8(rect8Pos, rectLenX, rectLenY, rectLenZ);
+  RigidRectPrism rect9(rect9Pos, rectLenX, rectLenY, rectLenZ);
   sim.addBody(rect1);
   sim.addBody(rect2);
   sim.addBody(rect3);
   sim.addBody(rect4);
   sim.addBody(rect5);
+  sim.addBody(rect6);
+  sim.addBody(rect7);
+  sim.addBody(rect8);
+  sim.addBody(rect9);
 
   // Visualization
   glClearColor(backgroundColor[0], backgroundColor[1], backgroundColor[2], 1.0);
   renderer.setLight({{lightPosition[0], lightPosition[1], lightPosition[2], 0},
-                     {   lightColor[0],    lightColor[1],    lightColor[2], 0}});
-  renderer.initializeCamera(camPosition, camDirection, FOV, WIN_WIDTH/WIN_HEIGHT);
+                     {lightColor[0], lightColor[1], lightColor[2], 0}});
+  renderer.initializeCamera(camPosition, camDirection, FOV, aspectRatio);
   renderer.addMesh(cubeMesh);
   renderer.addMesh(rect1.buildMesh(rectMat));
   renderer.addMesh(rect2.buildMesh(rectMat));
   renderer.addMesh(rect3.buildMesh(rectMat));
   renderer.addMesh(rect4.buildMesh(rectMat));
   renderer.addMesh(rect5.buildMesh(rectMat));
+  renderer.addMesh(rect6.buildMesh(rectMat));
+  renderer.addMesh(rect7.buildMesh(rectMat));
+  renderer.addMesh(rect8.buildMesh(rectMat));
+  renderer.addMesh(rect9.buildMesh(rectMat));
 }
 
 
 /**
- * @brief Simulation thread function. Updates simulation at the rate defined by
- *        STEP_RATE until simulationRunning is set to false and prints the
+ * @brief Simulation thread entry point. Updates simulation at the rate defined
+ *        by STEP_RATE until simulationRunning is set to false and prints the
  *        current number of updates per second if displayStepRate is true.
  */
 DWORD WINAPI runSimulation(LPVOID args) {
@@ -184,7 +212,7 @@ DWORD WINAPI runSimulation(LPVOID args) {
 }
 
 
-int main() {
+int main(int argc, char* argv[]) {
   
   // Initialize glfw
   glfwSetErrorCallback(errorCallback);
@@ -193,22 +221,41 @@ int main() {
     exit(EXIT_FAILURE);
   }
 
+  // Command line flags
+  GLFWmonitor* monitor = NULL;
+  winWidth        = WIN_WIDTH;
+  winHeight       = WIN_HEIGHT;
+  displayStepRate = false;
+  for(int i=1; i<argc; i++) {
+
+    // -f for full screen mode
+    if(strcmp(argv[i], "-f") == 0) {
+      monitor = glfwGetPrimaryMonitor();
+      const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+      winWidth = mode->width;
+      winHeight = mode->height;
+    }
+
+    // -ups to start with updates-per-second counter enabled
+    else if(strcmp(argv[i], "-ups") == 0)
+      displayStepRate = true;
+  }
+
   // Create window
   GLFWwindow* window;
-  GLFWmonitor* monitor = NULL;
-
-#if FULLSCREEN == 1
-  monitor = glfwGetPrimaryMonitor();
-#endif
-
-  window = glfwCreateWindow(WIN_WIDTH, WIN_HEIGHT, "Soft Body Simulation", monitor, NULL);
+  window = glfwCreateWindow(winWidth, winHeight, "Soft Body Simulation", monitor, NULL);
   if(!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);
   }
   glfwMakeContextCurrent(window);
   glfwSetFramebufferSizeCallback(window, framebufferSizeCallback);
+
+  // Initialize inputs
   glfwSetKeyCallback(window, keyCallback);
+  glfwSetCursorPosCallback(window, mouseCallback);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetCursorPos(window, 0, 0);
 
   // Initialize glew
   GLenum error = glewInit();
@@ -219,29 +266,31 @@ int main() {
 
   // Initialize renderer
   glEnable(GL_DEPTH_TEST);
-  glViewport(0, 0, WIN_WIDTH, WIN_HEIGHT);
+  glViewport(0, 0, winWidth, winHeight);
   glfwSwapInterval(1);
   renderer.setProgram(buildShaderProgram());
 
   // Initialize simulation
-  displayStepRate = false;
-  buildSimulation();
+  buildSimulation((float)winWidth/winHeight);
   HANDLE simThread = CreateThread(NULL, 0, runSimulation, NULL, 0, NULL);
 
-  std::cout << "\n*******************************************\n\n"
+  std::cout << "\n___________________________________________\n\n"
             <<   "                 CONTROLS:\n\n"
             <<   "  CAMERA CONTROL\n"
             <<   "    W          - Move forward\n"
             <<   "    A          - Move left\n"
             <<   "    S          - Move back\n"
             <<   "    D          - Move right\n"
-            <<   "    LEFT SHIFT - Move down\n"
             <<   "    SPACE      - Move up\n"
-            <<   "    ARROW KEYS - Rotate camera\n\n"
+            <<   "    LEFT SHIFT - Move down\n"
+            <<   "    MOUSE      - Rotate camera\n\n"
             <<   "  GENERAL\n"
             <<   "    ESC        - Close program\n"
             <<   "    F          - Toggle step rate counter\n\n"
-            <<   "*******************************************\n" << std::endl;
+            <<   "___________________________________________\n" << std::endl;
+
+  if(displayStepRate)
+      std::cout << "\nUpdates per second:" << std::endl;
 
   // Display loop
   while(!glfwWindowShouldClose(window)) {

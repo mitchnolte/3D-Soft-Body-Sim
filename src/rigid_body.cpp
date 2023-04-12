@@ -7,21 +7,11 @@
 #include "collision_data.h"
 
 
-const Vector& RigidBody::getCenterOfMass() const {
-  return centerOfMass;
-}
+const Vector& RigidBody::getCenterOfMass() const   { return centerOfMass;    }
+double RigidBody::getBoundingRadius() const        { return boundingRadius;  }
+const double RigidBody::getStaticFriction() const  { return staticFriction;  }
+const double RigidBody::getKineticFriction() const { return kineticFriction; }
 
-double RigidBody::getBoundingRadius() const {
-  return boundingRadius;
-}
-
-/**
- * @brief Returns a pair with the static and kinetic friction coefficients of
- *        the rigid body's surface.
- */
-const std::pair<double, double>& RigidBody::getFrictionCoefficients() const {
-  return friction;
-}
 
 
 /*******************************************************************************
@@ -31,9 +21,10 @@ const std::pair<double, double>& RigidBody::getFrictionCoefficients() const {
 RigidRectPrism::RigidRectPrism() {}
 
 RigidRectPrism::RigidRectPrism(const RigidRectPrism& rect) {
-  this->centerOfMass   = rect.centerOfMass;
-  this->boundingRadius = rect.boundingRadius;
-  this->friction       = rect.friction;
+  this->centerOfMass    = rect.centerOfMass;
+  this->boundingRadius  = rect.boundingRadius;
+  this->staticFriction  = rect.staticFriction;
+  this->kineticFriction = rect.kineticFriction;
   for(int i=0; i<8; i++)
     this->vertices[i] = rect.vertices[i];
 
@@ -62,8 +53,9 @@ RigidRectPrism::RigidRectPrism(const Vector& centerOfMass, float xLen, float yLe
                                float rotateAngle, const Vector& rotateAxis,
                                double staticFriction, double kineticFriction)
 {
-  this->centerOfMass = centerOfMass;
-  this->friction     = std::make_pair(staticFriction, kineticFriction);
+  this->centerOfMass    = centerOfMass;
+  this->staticFriction  = staticFriction;
+  this->kineticFriction = kineticFriction;
 
   xLen /= 2;
   if(yLen == 0.0) yLen = xLen;
@@ -254,7 +246,7 @@ void RigidRectPrism::detectCollisions(std::vector<Collision*>& collisions, SoftB
 
       // Move to closest face if no previous non-colliding state
       Vector collPoint = posStart + distStart[closestFace] * faces[closestFace].normal;
-      Surface surface{&faces[closestFace].normal, friction.first, friction.second};
+      Surface surface{&faces[closestFace].normal, staticFriction, kineticFriction};
       collisions.push_back(new SoftRigidCollision(tStart, collPoint, surface, softBody, i, 0.5));
       continue;
     }
@@ -298,7 +290,7 @@ void RigidRectPrism::detectCollisions(std::vector<Collision*>& collisions, SoftB
     }
 
     // Add collision to list
-    Surface surface{&faces[face].normal, friction.first, friction.second};
+    Surface surface{&faces[face].normal, staticFriction, kineticFriction};
     collisions.push_back(new SoftRigidCollision(tColl, approxCollPoint, surface, softBody, i, 0.5));
   }
 }

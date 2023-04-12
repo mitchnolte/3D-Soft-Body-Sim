@@ -39,11 +39,11 @@ class CameraController {
   float dt;
 
 public:
-  CameraController(float dt=1.0, float moveSpeed=6.0, float rotateSpeed=2.0);
+  CameraController(float dt=1.0, float moveSpeed=6.0, float rotateSpeed=0.1);
   void setTimeStep(float dt);
   void bindCamera(Camera& camera);
   void moveCamera(const glm::vec3& direction);
-  void rotateCamera(const glm::vec3& direction);
+  void rotateCamera(double dx, double dy);
   void updateCamera();
 };
 

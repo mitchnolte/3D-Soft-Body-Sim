@@ -14,14 +14,16 @@ struct Material;
  */
 class RigidBody {
 protected:
-  Vector centerOfMass;                // Position of the center of mass
-  double boundingRadius;              // Radius of bounding sphere for collision detection
-  std::pair<double, double> friction; // Static and kinetic friction coefficients of surface
+  Vector centerOfMass;
+  double boundingRadius;
+  double staticFriction;
+  double kineticFriction;
 
 public:
   const Vector& getCenterOfMass() const;
   double getBoundingRadius() const;
-  const std::pair<double, double>& getFrictionCoefficients() const;
+  const double getStaticFriction() const;
+  const double getKineticFriction() const;
 
   virtual Mesh buildMesh(const Material& material) = 0;
   virtual void detectCollisions(std::vector<Collision*>& collisions, SoftBody* softBody,

@@ -48,8 +48,9 @@ void Simulation::update() {
 
   // Calculate soft body states at end of update step
   std::vector<const VecList*> sbStates(softBodies.size());
-  for(int i=0; i<softBodies.size(); i++)
+  for(int i=0; i<softBodies.size(); i++) {
     sbStates[i] = &softBodies[i]->calculateUpdatedState(tEnd, iterationsPerUpdate);
+  }
 
   // Collision detection
   std::vector<Collision*> collisions;

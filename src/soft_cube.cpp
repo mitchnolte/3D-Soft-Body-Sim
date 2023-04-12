@@ -2,18 +2,6 @@
 
 
 /**
- * @brief  Soft body cube constructor.
- * @param  mass  Mass of the cube.
- */
-SoftCube::SoftCube() : SoftBody() {}
-
-SoftCube::SoftCube(const SoftCube& cube) : SoftBody(cube) {
-  this->centerMass = cube.centerMass;
-  for(int i=0; i<8; i++)
-    this->cornerMasses[i] = cube.cornerMasses[i];
-}
-
-/**
  * @brief Returns the center of mass which is approximated by taking the
  *        position of the mass located in the center of the cube.
  */
@@ -21,10 +9,6 @@ Vector SoftCube::getCenterOfMass() const {
   return masses[centerMass].getPos();
 }
 
-
-/*******************************************************************************
- *  CONSTRUCTION
- ******************************************************************************/
 
 GLuint indexOf(const std::vector<int>& v, GLuint i) {
   return std::distance(v.begin(), std::find(v.begin(), v.end(), i));
@@ -102,7 +86,7 @@ void SoftCube::getMeshIndices(std::vector<GLuint>& indices, std::vector<GLuint>&
                                      indexOf(surfaceMasses, cell->hhl),
                                      indexOf(surfaceMasses, cell->lhh)});
 
-      // Duplicate edge vertices so they have separate normals on each side for lighting
+      // Duplicate edge vertices
       int i = indices.size() - 1;
       if(x == 1) {
         if(z == 1) {
@@ -150,7 +134,7 @@ void SoftCube::getMeshIndices(std::vector<GLuint>& indices, std::vector<GLuint>&
                                      indexOf(surfaceMasses, cell->lhh),
                                      indexOf(surfaceMasses, cell->hlh)});
 
-      // Duplicate edge vertices so they have separate normals on each side for lighting
+      // Duplicate edge vertices
       int i = indices.size() - 1;
       if(x == 1) {
         if(y == 1) {
@@ -223,8 +207,7 @@ SoftBodyMesh SoftCube::buildMesh(const CubeCellGrid& cells, int cellsPerAxis,
 {
   // Get vertex positions
   std::vector<GLfloat> vertices;
-  std::vector<GLuint> massIndices;
-
+  std::vector<GLuint>  massIndices;
   for(int i=0; i<surfaceMasses.size(); i++) {
     const Vector& state = masses[surfaceMasses[i]].getState();
     vertices.insert(vertices.end(), {(float)state[0], (float)state[1], (float)state[2]});
@@ -257,7 +240,7 @@ SoftBodyMesh SoftCube::buildMesh(const CubeCellGrid& cells, int cellsPerAxis,
  * @param  c           Damping coefficient.
  */
 CubeCell SoftCube::buildCell(const Vector& cellCenter, CubeCell& cellX, CubeCell& cellY,
-                             CubeCell& cellZ, double cellSize, double k, double c)
+                             CubeCell& cellZ, double cellSize)
 {
   CubeCell cell;
 
@@ -279,20 +262,6 @@ CubeCell SoftCube::buildCell(const Vector& cellCenter, CubeCell& cellX, CubeCell
 
   // Connect to previous cell in x-axis
   cell.lhh = cellX.hhh;
-
-  // Create Springs
-  double centerDist = vecNorm(Vector(cellSize/2, 3));
-  springs.emplace_back(cell.lll, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.llh, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.lhl, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.lhh, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.hll, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.hlh, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.hhl, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.hhh, cell.center, k, c, centerDist);
-  springs.emplace_back(cell.lhh, cell.hhh, k, c, cellSize);
-  springs.emplace_back(cell.hhl, cell.hhh, k, c, cellSize);
-  springs.emplace_back(cell.hlh, cell.hhh, k, c, cellSize);
 
   return cell;
 }
@@ -323,7 +292,11 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   double halfCell = cellSize/2;
   Vector cellCenter;                              // Center of current cell
   Vector firstCellCenter = position - sideLengths/2 + halfCell;
-  
+
+  // Length of springs connecting diagonally adjacent surface masses
+  double diagSurfaceSpringLen = vecNorm(Vector(cellSize, 2));
+
+  // Grid of cells storing positional data about mass indices
   CubeCellGrid cells;
   cells.resize(cellsPerAxis+1);
   for(int i=0; i<cellsPerAxis+1; i++) {
@@ -360,10 +333,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   cell->hhh = masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
 
-  springs.emplace_back(cell->llh, cell->lhh, k, c, cellSize);
-  springs.emplace_back(cell->llh, cell->hlh, k, c, cellSize);
-  springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-  springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+  springs.emplace_back(cell->llh, cell->hhh, k, c, diagSurfaceSpringLen);
+  springs.emplace_back(cell->lhh, cell->hlh, k, c, diagSurfaceSpringLen);
 
   cellCenter = firstCellCenter + Vector{0, cellSize, -cellSize};
   for(int y=2; y<cellsPerAxis+1; y++) {
@@ -380,9 +351,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
-    springs.emplace_back(cell->llh, cell->lhh, k, c, cellSize);
-    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->llh, cell->hhh, k, c, diagSurfaceSpringLen);
+    springs.emplace_back(cell->lhh, cell->hlh, k, c, diagSurfaceSpringLen);
 
     cellCenter[1] += cellSize;
   }
@@ -402,9 +372,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
-    springs.emplace_back(cell->llh, cell->hlh, k, c, cellSize);
-    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->llh, cell->hhh, k, c, diagSurfaceSpringLen);
+    springs.emplace_back(cell->lhh, cell->hlh, k, c, diagSurfaceSpringLen);
 
     cellCenter[1] += cellSize;
     for(int y=2; y<cellsPerAxis+1; y++) {
@@ -419,8 +388,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
 
-      springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-      springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
+      springs.emplace_back(cell->llh, cell->hhh, k, c, diagSurfaceSpringLen);
+      springs.emplace_back(cell->lhh, cell->hlh, k, c, diagSurfaceSpringLen);
 
       cellCenter[1] += cellSize;
     }
@@ -444,9 +413,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   cell->hhh = masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
 
-  springs.emplace_back(cell->lhl, cell->lhh, k, c, cellSize);
-  springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-  springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+  springs.emplace_back(cell->lhl, cell->hhh, k, c, diagSurfaceSpringLen);
+  springs.emplace_back(cell->lhh, cell->hhl, k, c, diagSurfaceSpringLen);
 
   cellCenter = firstCellCenter + Vector{0, -cellSize, cellSize};
   for(int z=2; z<cellsPerAxis+1; z++) {
@@ -463,9 +431,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
-    springs.emplace_back(cell->lhl, cell->lhh, k, c, cellSize);
-    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->lhl, cell->hhh, k, c, diagSurfaceSpringLen);
+    springs.emplace_back(cell->lhh, cell->hhl, k, c, diagSurfaceSpringLen);
 
     cellCenter[2] += cellSize;
   }
@@ -483,8 +450,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
-    springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->lhl, cell->hhh, k, c, diagSurfaceSpringLen);
+    springs.emplace_back(cell->lhh, cell->hhl, k, c, diagSurfaceSpringLen);
 
     cellCenter[2] += cellSize;
     for(int z=2; z<cellsPerAxis+1; z++) {
@@ -499,8 +466,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
 
-      springs.emplace_back(cell->lhh, cell->hhh, k, c, cellSize);
-      springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+      springs.emplace_back(cell->lhl, cell->hhh, k, c, diagSurfaceSpringLen);
+      springs.emplace_back(cell->lhh, cell->hhl, k, c, diagSurfaceSpringLen);
 
       cellCenter[2] += cellSize;
     }
@@ -520,8 +487,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
   cell->hhh = masses.size()-1;
   surfaceMasses.push_back(cell->hhh);
 
-  springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
-  springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+  springs.emplace_back(cell->hll, cell->hhh, k, c, diagSurfaceSpringLen);
+  springs.emplace_back(cell->hlh, cell->hhl, k, c, diagSurfaceSpringLen);
 
   cellCenter = firstCellCenter + Vector{-cellSize, 0, cellSize};
   for(int z=2; z<cellsPerAxis+1; z++) {
@@ -535,8 +502,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
-    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
-    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hll, cell->hhh, k, c, diagSurfaceSpringLen);
+    springs.emplace_back(cell->hlh, cell->hhl, k, c, diagSurfaceSpringLen);
 
     cellCenter[2] += cellSize;
   }
@@ -554,8 +521,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cell->hhh = masses.size()-1;
     surfaceMasses.push_back(cell->hhh);
 
-    springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
-    springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+    springs.emplace_back(cell->hll, cell->hhh, k, c, diagSurfaceSpringLen);
+    springs.emplace_back(cell->hlh, cell->hhl, k, c, diagSurfaceSpringLen);
 
     cellCenter[2] += cellSize;
     for(int z=2; z<cellsPerAxis+1; z++) {
@@ -570,8 +537,8 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
       cell->hhh = masses.size()-1;
       surfaceMasses.push_back(cell->hhh);
 
-      springs.emplace_back(cell->hlh, cell->hhh, k, c, cellSize);
-      springs.emplace_back(cell->hhl, cell->hhh, k, c, cellSize);
+      springs.emplace_back(cell->hll, cell->hhh, k, c, diagSurfaceSpringLen);
+      springs.emplace_back(cell->hlh, cell->hhl, k, c, diagSurfaceSpringLen);
 
       cellCenter[2] += cellSize;
     }
@@ -589,9 +556,23 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     for(int y=1; y<=cellsPerAxis; y++) {
       for(int z=1; z<=cellsPerAxis; z++) {
         cells[x][y][z] = buildCell(cellCenter, cells[x-1][y][z], cells[x][y-1][z],
-                                   cells[x][y][z-1], cellSize, k, c);
+                                   cells[x][y][z-1], cellSize);
         if(x == cellsPerAxis || y == cellsPerAxis || z == cellsPerAxis)
           surfaceMasses.push_back(cells[x][y][z].hhh);
+
+        // Connect diagonal surface masses
+        if(x == cellsPerAxis) {
+          springs.emplace_back(cells[x][y][z].hll, cells[x][y][z].hhh, k, c, diagSurfaceSpringLen);
+          springs.emplace_back(cells[x][y][z].hlh, cells[x][y][z].hhl, k, c, diagSurfaceSpringLen);
+        }
+        if(y == cellsPerAxis) {
+          springs.emplace_back(cells[x][y][z].lhl, cells[x][y][z].hhh, k, c, diagSurfaceSpringLen);
+          springs.emplace_back(cells[x][y][z].lhh, cells[x][y][z].hhl, k, c, diagSurfaceSpringLen);
+        }
+        if(z == cellsPerAxis) {
+          springs.emplace_back(cells[x][y][z].llh, cells[x][y][z].hhh, k, c, diagSurfaceSpringLen);
+          springs.emplace_back(cells[x][y][z].lhh, cells[x][y][z].hlh, k, c, diagSurfaceSpringLen);
+        }
 
         cellCenter[2] += cellSize;        // Increment cell z position 
       }
@@ -602,33 +583,154 @@ SoftBodyMesh SoftCube::buildStructure(const Vector& position, double sideLengths
     cellCenter[0] += cellSize;            // Increment cell x position
   }
 
+  // Create springs
+  subdivideCell(cells, cellsPerAxis, k, c);
+
+
   /**
    * Initialize member variables
    */
 
-  masses.shrink_to_fit();
-  springs.shrink_to_fit();
-  surfaceMasses.shrink_to_fit();
-
-  boundingRadius  = 1.2*vecNorm(Vector(sideLengths/2, 3));
-  cornerMasses[0] = cells[1][1][1].lll;
-  cornerMasses[1] = cells[1][1][cellsPerAxis].llh;
-  cornerMasses[2] = cells[1][cellsPerAxis][1].lhl;
-  cornerMasses[3] = cells[cellsPerAxis][1][1].hll;
-  cornerMasses[4] = cells[1][cellsPerAxis][cellsPerAxis].lhh;
-  cornerMasses[5] = cells[cellsPerAxis][1][cellsPerAxis].hll;
-  cornerMasses[6] = cells[cellsPerAxis][cellsPerAxis][1].hhl;
-  cornerMasses[7] = cells[cellsPerAxis][cellsPerAxis][cellsPerAxis].hhh;
-
-  int centralCell = cellsPerAxis / 2;
+  int centralCell = cellsPerAxis/2;
   if(cellsPerAxis%2 == 0)
     centerMass = cells[centralCell][centralCell][centralCell].lll;
   else
     centerMass = cells[centralCell][centralCell][centralCell].center;
+
+  boundingRadius = 1.2*vecNorm(Vector(sideLengths/2, 3));
+  masses.shrink_to_fit();
+  springs.shrink_to_fit();
+  surfaceMasses.shrink_to_fit();
 
   VecList state(masses.size());
   getState(state);
   initSolver(state);
 
   return buildMesh(cells, cellsPerAxis, material);
+}
+
+
+/**
+ * @brief  Creates the springs to connect the masses of a cell, which may be a
+ *         super-cell comprised of multiple individual cells, and recursively
+ *         subdivides that cell until it has created the springs for each
+ *         individual cell within the super-cell. The result is a fractal of
+ *         cells with each subsequent smaller level having half the cells per
+ *         axis as the last (just under half for cells with an odd number of
+ *         cells per axis).
+ *
+ * @param  cells         Cell grid.
+ * @param  cellsPerAxis  Number of cells per axis of the super-cell.
+ * @param  x             Starting x-axis cell grid index.
+ * @param  y             Starting y-axis cell grid index.
+ * @param  z             Starting z-axis cell grid index.
+ * @param  k             Spring coefficient.
+ * @param  c             Damping coefficient.
+ */
+void SoftCube::subdivideCell(CubeCellGrid& cells, int cellsPerAxis, double k, double c,
+                              int x, int y, int z)
+{
+  if(cellsPerAxis < 1)
+    return;
+
+  // Find masses of cell
+  int span = cellsPerAxis - 1;
+  int center;
+  if(cellsPerAxis & 1) center = cells[x+span/2][y+span/2][z+span/2].center;
+  else                 center = cells[x+span/2][y+span/2][z+span/2].hhh;
+
+  int lll = cells[x][y][z].lll;
+  int llh = cells[x][y][z+span].llh;
+  int lhl = cells[x][y+span][z].lhl;
+  int lhh = cells[x][y+span][z+span].lhh;
+  int hll = cells[x+span][y][z].hll;
+  int hlh = cells[x+span][y][z+span].hlh;
+  int hhl = cells[x+span][y+span][z].hhl;
+  int hhh = cells[x+span][y+span][z+span].hhh;
+
+  // Connect adjacent cell vertices
+  double cellSize = vecNorm(masses[lll].getPos() - masses[llh].getPos());
+  addSpring(lll, llh, k, c, cellSize);
+  addSpring(lll, lhl, k, c, cellSize);
+  addSpring(lll, hll, k, c, cellSize);
+  addSpring(llh, lhh, k, c, cellSize);
+  addSpring(llh, hlh, k, c, cellSize);
+  addSpring(lhl, lhh, k, c, cellSize);
+  addSpring(lhl, hhl, k, c, cellSize);
+  addSpring(lhh, hhh, k, c, cellSize);
+  addSpring(hll, hlh, k, c, cellSize);
+  addSpring(hll, hhl, k, c, cellSize);
+  addSpring(hlh, hhh, k, c, cellSize);
+  addSpring(hhl, hhh, k, c, cellSize);
+
+  // Connect each vertex to central mass
+  double vertexDist = vecNorm(Vector(cellSize/2, 3));
+  springs.emplace_back(center, lll, k, c, vertexDist);
+  springs.emplace_back(center, llh, k, c, vertexDist);
+  springs.emplace_back(center, lhl, k, c, vertexDist);
+  springs.emplace_back(center, lhh, k, c, vertexDist);
+  springs.emplace_back(center, hll, k, c, vertexDist);
+  springs.emplace_back(center, hlh, k, c, vertexDist);
+  springs.emplace_back(center, hhl, k, c, vertexDist);
+  springs.emplace_back(center, hhh, k, c, vertexDist);
+
+  // Subdivide cell
+  double offset = ceil(cellsPerAxis/2.0);
+  if(cellsPerAxis > 1) {
+    subdivideCell(cells, cellsPerAxis/2, k, c, x,        y,        z);
+    subdivideCell(cells, cellsPerAxis/2, k, c, x+offset, y,        z);
+    subdivideCell(cells, cellsPerAxis/2, k, c, x,        y+offset, z);
+    subdivideCell(cells, cellsPerAxis/2, k, c, x,        y,        z+offset);
+    subdivideCell(cells, cellsPerAxis/2, k, c, x+offset, y+offset, z);
+    subdivideCell(cells, cellsPerAxis/2, k, c, x+offset, y,        z+offset);
+    subdivideCell(cells, cellsPerAxis/2, k, c, x,        y+offset, z+offset);
+    subdivideCell(cells, cellsPerAxis/2, k, c, x+offset, y+offset, z+offset);
+
+    // Account for middle cells that get skipped with odd numbered cells
+    if(cellsPerAxis & 1) {
+      offset = cellsPerAxis/2;
+      for(int i=0; i<cellsPerAxis; i++) {
+        if(i == offset) {
+          subdivideCell(cells, 1, x+offset, y+offset, z+offset, k, c);
+          continue;
+        }
+        subdivideCell(cells, 1, k, c, x+i, y+offset, z+offset);
+        subdivideCell(cells, 1, k, c, x+offset, y+i, z+offset);
+        subdivideCell(cells, 1, k, c, x+offset, y+offset, z+i);
+      }
+
+      for(int i=0; i<cellsPerAxis; i++) {
+        if(i == offset) continue;
+        for(int j=0; j<cellsPerAxis; j++) {
+          if(j == offset) continue;
+          subdivideCell(cells, 1, k, c, x+i, y+j, z+offset);
+          subdivideCell(cells, 1, k, c, x+i, y+offset, z+j);
+          subdivideCell(cells, 1, k, c, x+offset, y+i, z+j);
+        }
+      }
+    }
+  }
+}
+
+
+/**
+ * @brief  Adds a spring to the list only if a spring connecting the two masses
+ *         doesn't already exist.
+ *
+ * @param  mass1    First mass connected to spring.
+ * @param  mass2    Second mass connected to spring.
+ * @param  k        Spring coefficient.
+ * @param  c        Damping coefficient.
+ * @param  restLen  Rest length of the spring.
+ */
+void SoftCube::addSpring(int mass1, int mass2, double k, double c, double length) {
+  for(const Spring& spring : springs) {
+    const std::pair<int, int>& springMasses = spring.getMassIndices();
+    if((mass1 == springMasses.first || mass1 == springMasses.second) &&
+       (mass2 == springMasses.first || mass2 == springMasses.second))
+    {
+      return;
+    }
+  }
+  springs.emplace_back(mass1, mass2, k, c, length);
 }

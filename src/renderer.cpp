@@ -42,17 +42,6 @@ void Renderer::initializeCamController() {
   keyBindings[GLFW_KEY_D] = std::make_pair(moveRight, moveLeft);        // Move camera right     (D)
   keyBindings[GLFW_KEY_SPACE] = std::make_pair(moveUp, moveDown);       // Move camera up    (SPACE)
   keyBindings[GLFW_KEY_LEFT_SHIFT] = std::make_pair(moveDown, moveUp);  // Move camera down  (SHIFT)
-
-  // Camera rotation keys (arrow keys)
-  KeyFn rotateRight = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{-1,0,0});
-  KeyFn rotateLeft  = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{ 1,0,0});
-  KeyFn rotateUp    = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{ 0,1,0});
-  KeyFn rotateDown  = std::bind(&CameraController::rotateCamera, &camController, glm::vec3{0,-1,0});
-
-  keyBindings[GLFW_KEY_RIGHT] = std::make_pair(rotateRight, rotateLeft);  // Turn camera right
-  keyBindings[GLFW_KEY_LEFT]  = std::make_pair(rotateLeft, rotateRight);  // Turn camera left
-  keyBindings[GLFW_KEY_UP]    = std::make_pair(rotateUp, rotateDown);     // Turn camera up
-  keyBindings[GLFW_KEY_DOWN]  = std::make_pair(rotateDown, rotateUp);     // Turn camera down
 }
 
 
@@ -100,6 +89,11 @@ void Renderer::handleKeyInput(int key, int action) {
       keyBindings[key].second(glm::vec3());
     }
   }
+}
+
+
+void Renderer::handleMouseInput(double dx, double dy) {
+  camController.rotateCamera(dx, dy);
 }
 
 

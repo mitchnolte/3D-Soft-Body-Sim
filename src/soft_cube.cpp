@@ -691,7 +691,7 @@ void SoftCube::subdivideCell(CubeCellGrid& cells, int cellsPerAxis, double k, do
       offset = cellsPerAxis/2;
       for(int i=0; i<cellsPerAxis; i++) {
         if(i == offset) {
-          subdivideCell(cells, 1, x+offset, y+offset, z+offset, k, c);
+          subdivideCell(cells, 1, k, c, x+offset, y+offset, z+offset);
           continue;
         }
         subdivideCell(cells, 1, k, c, x+i, y+offset, z+offset);

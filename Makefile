@@ -1,7 +1,7 @@
 TARGET   := build/Softbody
 OBJECTS  := src/main.o src/renderer.o src/camera.o src/mesh.o\
             src/simulation.o src/vector.o src/rk4_solver.o src/soft_body.o\
-					  src/soft_cube.o src/rigid_body.o src/collision_data.o
+            src/soft_cube.o src/rigid_body.o src/collision_data.o
 LIBS     := -lglfw3dll -lglew32 -lglu32 -lopengl32 -lm -lwinmm
 INCLUDE  := -Ilibs/include
 FLAGS    := -static-libgcc -static-libstdc++ $(INCLUDE) -Llibs

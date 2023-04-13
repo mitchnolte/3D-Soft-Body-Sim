@@ -34,11 +34,13 @@ protected:
 public:
   static void computeNormals(GLfloat normals[], GLfloat vertices[], GLuint indices[],
                              int numV, int numI);
+
   static void triangleNormal(GLfloat normal[], GLfloat p1[3], GLfloat p2[3], GLfloat p3[3]);
 
   Mesh();
   Mesh(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, int numI,
        const Material& material);
+
   void setMaterial(const Material& material);
   void loadVertexData(GLfloat vertices[], GLfloat normals[], GLuint indices[], int numV, int numI);
   virtual void display(GLuint program, const glm::mat4& viewPerspective);
@@ -57,7 +59,9 @@ class SoftBodyMesh : public Mesh {
 public:
   SoftBodyMesh();
   SoftBodyMesh(GLfloat vertices[], GLfloat normals[], GLuint indices[],
-               const std::vector<GLuint>& massIndices, int numV, int numI, const Material& material);
+               const std::vector<GLuint>& massIndices, int numV, int numI,
+               const Material& material);
+
   void bindBody(const SoftBody* body);
   void update();
   void display(GLuint program, const glm::mat4& viewProjection);
